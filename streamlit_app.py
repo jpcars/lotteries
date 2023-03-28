@@ -6,11 +6,19 @@ from lotteries.exclusive_composition_sensitive_lottery import EXCSLottery
 st.title('Distribution Lotteries')
 
 st.subheader('Introduction')
-st.write('This is a small app that is supposed to compute useful quantities for different lottery procedures,'
-         'which are commonplace in ethical debates surrounding the distribution of goods.'
-         'So far this app is very minimalistic. Given a set of possibly overlapping groups it computes the'
-         'probabilities that any particular group and any particular claimant will win the lottery. So far only Vong\'s'
-         'exclusive composition sensitive lottery is implemented.')
+st.write("""
+This is a small app that is supposed to compute useful quantities for different lottery procedures,
+which are commonplace in ethical debates surrounding the distribution of goods. So far this app is very
+minimalistic. Given a set of possibly overlapping groups it computes the probabilities that any particular
+group and any particular claimant will win the lottery. So far only Vong\'s exclusive composition sensitive
+lottery is implemented.
+
+Further plans involve:
+- implementing other lotteries, such as Timmermann\'s individualist lottery and Vong\'s equal composition sensitive
+lottery, (if you want others, please say so)
+- implementing metrics to evaluate how well these lotteries fulfill certain potential ethical criteria,
+e.g. absolute fairness, comparative fairness (both in Vong\'s Paper) or procedural fairness (as described in Rasmussen)
+""")
 
 st.subheader('Glossary')
 st.write('EXCS - Vong\'s exclusive composition sensitive lottery')
@@ -51,7 +59,6 @@ if submitted and all([len(group) > 0 for group in groups]):
     claimant_probabilities_s.index.name = 'claimant'
 
     st.subheader('Fairness metrics')
-    st.write(group_probabilities_s)
 
     st.subheader('Probability of benefitting a particular group')
     st.write(group_probabilities_s)
