@@ -6,7 +6,11 @@ from lotteries.exclusive_composition_sensitive_lottery import EXCSLottery
 st.title('Distribution Lotteries')
 
 st.subheader('Introduction')
-st.write('...')
+st.write('This is a small app that is supposed to compute useful quantities for different lottery procedures,'
+         'which are commonplace in ethical debates surrounding the distribution of goods.'
+         'So far this app is very minimalistic. Given a set of possibly overlapping groups it computes the'
+         'probabilities that any particular group and any particular claimant will win the lottery. So far only Vong\'s'
+         'exclusive composition sensitive lottery is implemented.')
 
 st.subheader('Glossary')
 st.write('EXCS - Vong\'s exclusive composition sensitive lottery')
