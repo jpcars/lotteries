@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["jpcars"]
 readme = "README.md"
-packages = [{include = "exclusive_lottery"}]
+packages = [{include = "lotteries"}]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.11"
@@ -13,6 +13,7 @@ seaborn = "^0.12.2"
 sympy = "^1.11.1"
 scipy = "^1.10.0"
 streamlit = "^1.19.0"
+streamlit-tags = "1.2.8"
 
 
 [tool.poetry.group.dev.dependencies]
