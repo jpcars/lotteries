@@ -19,7 +19,7 @@ class Claimant:
         self.member_of = set()
 
 
-class CSELottery:
+class EXCSLottery:
     """
     Implements a single step in the Composition-sensitive exclusive (CSE) lottery
     """
@@ -45,17 +45,13 @@ class CSELottery:
             group_claimants = set()
             for claimant in group.claimants if self.check_groups_type() else group:
                 if isinstance(claimant, Claimant):
-                    claimant_number = claimant.name
-                elif isinstance(claimant, int):
-                    claimant_number = claimant
+                    claimant_name = claimant.name
                 else:
-                    raise ValueError(
-                        f"{type(claimant)=} but expected instance of Claimant or int"
-                    )
-                if claimant_number not in self.claimants:
-                    self.claimants[claimant_number] = Claimant(claimant_number)
-                self.claimants[claimant_number].member_of.add(index)
-                group_claimants.add(self.claimants[claimant_number])
+                    claimant_name = str(claimant)
+                if claimant_name not in self.claimants:
+                    self.claimants[claimant_name] = Claimant(claimant_name)
+                self.claimants[claimant_name].member_of.add(index)
+                group_claimants.add(self.claimants[claimant_name])
             self.groups['active'][index] = Group(index, group_claimants)
 
     def exclusivity_relations(self):
@@ -138,7 +134,7 @@ class CSELottery:
                 else:
                     if len(group.is_subset_of) > 0:
                         new_groups = {i: copy.copy(self.groups['active'][i]) for i in group.is_subset_of}
-                        temp_lottery = CSELottery(new_groups)
+                        temp_lottery = EXCSLottery(new_groups)
                         temp_lottery.initialize()
                         for i, g in temp_lottery.groups['active'].items():
                             self.groups['active'][i].claim += group.claim * g.claim
@@ -149,7 +145,7 @@ class CSELottery:
 
 if __name__ == "__main__":
     groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
-    lottery = CSELottery(groupie)
+    lottery = EXCSLottery(groupie)
     lottery.initialize()
     lottery.iterate()
     for group in lottery.groups['inactive'].values():
