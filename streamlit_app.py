@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 from streamlit_tags import st_tags
+
 from lotteries.exclusive_composition_sensitive_lottery import EXCSLottery
 
 st.title("Distribution Lotteries")

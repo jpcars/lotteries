@@ -18,7 +18,12 @@ streamlit-tags = "1.2.8"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
+isort = "^5.12.0"
+flake8 = "^6.0.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"

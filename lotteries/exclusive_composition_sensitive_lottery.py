@@ -1,6 +1,6 @@
-from itertools import permutations
-from collections import defaultdict
 import copy
+from collections import defaultdict
+from itertools import permutations
 
 import pandas as pd
 
