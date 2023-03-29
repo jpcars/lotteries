@@ -2,6 +2,8 @@ from itertools import permutations
 from collections import defaultdict
 import copy
 
+import pandas as pd
+
 
 class Group:
     def __init__(self, name, claimants):
@@ -32,6 +34,7 @@ class Lottery:
         self.iterated = False
         self.initialize()
         self.base_claim = 1 / len(self.claimants)
+        self.lottery_name = None
 
     def initialize(self):
         if not self.initialized:
@@ -81,6 +84,32 @@ class Lottery:
                 f"Trying to deactivate group {index}, but not present in active groups"
             )
 
+    def probabilities(self) -> (pd.Series, pd.Series):
+        """
+        Computes the probabilities that any particular group and any particular claimant will win the lottery
+        :return: (series of group probabilities, series of claimant probabilities)
+        """
+        group_probabilities = {}
+        claimant_probabilities = {}
+        for group in self.groups["inactive"].values():
+            group_probabilities[group.name] = group.claim
+            if group.claim > 0:
+                for claimant in group.claimants:
+                    claimant_probabilities[claimant.name] = (
+                        claimant_probabilities.get(claimant.name, 0) + group.claim
+                    )
+        group_probabilities_series = pd.Series(
+            data=group_probabilities, name=self.lottery_name
+        )
+        group_probabilities_series.sort_index(inplace=True)
+        group_probabilities_series.index.name = "group"
+        claimant_probabilities_series = pd.Series(
+            data=claimant_probabilities, name=self.lottery_name
+        )
+        claimant_probabilities_series.sort_index(inplace=True)
+        claimant_probabilities_series.index.name = "claimant"
+        return group_probabilities_series, claimant_probabilities_series
+
 
 class EXCSLottery(Lottery):
     """
@@ -89,6 +118,7 @@ class EXCSLottery(Lottery):
 
     def __init__(self, groups):
         super().__init__(groups)
+        self.lottery_name = "EXCS"
         self.exclusivity_relations()
         self.claims()
 
