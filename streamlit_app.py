@@ -1,7 +1,8 @@
+import pandas as pd
 import streamlit as st
 from streamlit_tags import st_tags
 
-from lotteries.exclusive_composition_sensitive_lottery import EXCSLottery
+from lotteries.lottery import EXCSLottery, EQCSLottery
 
 st.title("Distribution Lotteries")
 
@@ -61,17 +62,23 @@ if len(removed_duplicates) < len(groups):
     raise Exception("Please make sure that all groups are unique.")
 
 if submitted:
-    lottery = EXCSLottery(groups)
-    lottery.compute()
-    group_probabilities_series, claimant_probabilities_series = lottery.probabilities()
-    group_probabilities_series.index = (
-        group_probabilities_series.index + 1
-    )  # adding 1 in order to make the enumeration of groups in the app start at 1 instead of 0 # noqa: E501
-
+    group_series = []
+    claimant_series = []
+    for LotteryCLass in [EXCSLottery, EQCSLottery]:
+        lottery = LotteryCLass(groups)
+        lottery.compute()
+        group_series_temp, claimant_series_temp = lottery.probabilities()
+        group_series_temp.index = (
+                group_series_temp.index + 1
+        )  # adding 1 in order to make the enumeration of groups in the app start at 1 instead of 0 # noqa: E501
+        group_series.append(group_series_temp)
+        claimant_series.append(claimant_series_temp)
+    group_df = pd.concat(group_series, axis=1)
+    claimant_df = pd.concat(claimant_series, axis=1)
     st.subheader("Fairness metrics")
 
-    st.subheader("Probability of benefitting a particular group")
-    st.write(group_probabilities_series)
+    st.subheader("Probability of benefiting a particular group")
+    st.write(group_df)
 
-    st.subheader("Probability of benefitting a particular claimant")
-    st.write(claimant_probabilities_series)
+    st.subheader("Probability of benefiting a particular claimant")
+    st.write(claimant_df)

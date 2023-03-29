@@ -30,11 +30,11 @@ class Lottery:
         self._groups = groups
         self.claimants = {}
         self.groups = {"active": {}, "inactive": {}}
+        self.lottery_name = None
         self.initialized = False
-        self.iterated = False
+        self.computed = False
         self.initialize()
         self.base_claim = 1 / len(self.claimants)
-        self.lottery_name = None
 
     def initialize(self):
         if not self.initialized:
@@ -113,7 +113,7 @@ class Lottery:
 
 class EXCSLottery(Lottery):
     """
-    Implements the Composition-sensitive exclusive (CSE) lottery
+    Implements the Exclusive Composition-sensitive lottery
     """
 
     def __init__(self, groups):
@@ -145,11 +145,10 @@ class EXCSLottery(Lottery):
 
     def claims(self):
         """
-        Given the set of benefittable groups compute the non-iterated probabilities of receiving the benefits for
+        Given the set of groups compute the non-iterated probabilities of receiving the benefits for
         each group
         :return:
         """
-        self.base_claim
         for claimant in self.claimants.values():
             total_exclusives = sum(
                 [
@@ -174,8 +173,8 @@ class EXCSLottery(Lottery):
                             self.base_claim * len(exclusive_in_group) / total_exclusives
                         )
 
-    def iterate(self):
-        if not self.iterated:
+    def compute(self):
+        if not self.computed:
             while len(self.groups["active"]) > 0:
                 for index, group in self.groups["active"].copy().items():
                     if (
@@ -194,15 +193,59 @@ class EXCSLottery(Lottery):
                                 self.groups["active"][i].is_superset_of.remove(index)
                             group.claim = 0
                         self.deactivate_group(index)
-        self.iterated = True
+        self.computed = True
+
+
+class EQCSLottery(Lottery):
+    """
+    Implements the Equal Composition-Sensitive lottery
+    """
+
+    def __init__(self, groups):
+        super().__init__(groups)
+        self.lottery_name = "EQCS"
+        self.claims()
+
+    def claims(self):
+        """
+        Given the set of groups compute the non-iterated probabilities of receiving the benefits for
+        each group
+        :return:
+        """
+        for claimant in self.claimants.values():
+            number_groups = len(claimant.member_of)
+            if number_groups == 0:
+                raise ValueError(f"{claimant.name=} is not a member of any group.")
+            for group_index in claimant.member_of:
+                group = self.groups["active"][group_index]
+                group.claim += self.base_claim / number_groups
 
     def compute(self):
-        self.iterate()
+        if not self.computed:
+            while len(self.groups["active"]) > 0:
+                for index, group in self.groups["active"].copy().items():
+                    if (
+                        len(group.is_superset_of) > 0
+                    ):  # don't compute groups, which still have active subgroups
+                        pass
+                    else:
+                        if len(group.is_subset_of) > 0:
+                            new_groups = {
+                                i: copy.copy(self.groups["active"][i])
+                                for i in group.is_subset_of
+                            }
+                            temp_lottery = EQCSLottery(new_groups)
+                            for i, g in temp_lottery.groups["active"].items():
+                                self.groups["active"][i].claim += group.claim * g.claim
+                                self.groups["active"][i].is_superset_of.remove(index)
+                            group.claim = 0
+                        self.deactivate_group(index)
+        self.computed = True
 
 
 if __name__ == "__main__":
     groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
-    lottery = EXCSLottery(groupie)
+    lottery = EQCSLottery(groupie)
     lottery.compute()
     for group in lottery.groups["inactive"].values():
         print(f"{group.name=}, {group.claim}\n")
