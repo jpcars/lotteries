@@ -33,7 +33,7 @@ with st.form("Number of groups"):
 groups = []
 if 'numGroups' in st.session_state.keys():
     with st.form("Claimants in groups"):
-        for i in range(st.session_state['numGroups']):
+        for i in range(1, st.session_state['numGroups'] + 1):
             groups.append(st_tags(
                 label=f'Names of claimants in group {i}:',
                 text='Type name and press Enter to add',
@@ -42,18 +42,18 @@ if 'numGroups' in st.session_state.keys():
                 key=f'{i}'))
         submitted = st.form_submit_button("Submit")
 
+if any([len(group) == 0 for group in groups]):
+    raise Exception('Please make sure that all groups are non-empty.')
+
 removed_duplicates = []
 for group in groups:
     if set(group) not in removed_duplicates:
         removed_duplicates.append(set(group))
 
 if len(removed_duplicates) < len(groups):
-    st.error('Please make sure that all groups are unique.')
+    raise Exception('Please make sure that all groups are unique.')
 
-if any([len(group) == 0 for group in groups]):
-    st.error('Please make sure that all groups are non-empty.')
-
-if submitted and all([len(group) > 0 for group in groups]) and len(removed_duplicates) == len(groups):
+if submitted:
     lottery = EXCSLottery(groups)
     lottery.initialize()
     lottery.iterate()
@@ -65,6 +65,7 @@ if submitted and all([len(group) > 0 for group in groups]) and len(removed_dupli
             for claimant in group.claimants:
                 claimant_probabilities[claimant.name] = claimant_probabilities.get(claimant.name, 0) + group.claim
     group_probabilities_series = pd.Series(data=group_probabilities, name='EXCS')
+    group_probabilities_series.index = group_probabilities_series.index + 1  # adding 1 in order to make the enumeration of groups in the app start at 1 instead of 0 # noqa: E501
     group_probabilities_series.sort_index(inplace=True)
     group_probabilities_series.index.name = 'group'
     claimant_probabilities_series = pd.Series(data=claimant_probabilities, name='EXCS')
