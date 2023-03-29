@@ -19,22 +19,25 @@ class Claimant:
         self.member_of = set()
 
 
-class EXCSLottery:
+class Lottery:
     """
-    Implements a single step in the Composition-sensitive exclusive (CSE) lottery
+    Base class for the different lotteries
     """
 
     def __init__(self, groups):
         self._groups = groups
         self.claimants = {}
-        self.groups = {'active': {}, 'inactive': {}}
+        self.groups = {"active": {}, "inactive": {}}
+        self.initialized = False
+        self.iterated = False
+        self.initialize()
+        self.base_claim = 1 / len(self.claimants)
 
-    def check_groups_type(self):
-        """Checks whether _groups is a dictionary of group instances"""
-        if isinstance(self._groups, list):
-            return False
-        else:
-            return all(isinstance(item, Group) for item in self._groups.values())
+    def initialize(self):
+        if not self.initialized:
+            self.create_groups_and_claimants()
+            self.supersets()
+        self.initialized = True
 
     def create_groups_and_claimants(self):
         for index, group in (
@@ -52,7 +55,42 @@ class EXCSLottery:
                     self.claimants[claimant_name] = Claimant(claimant_name)
                 self.claimants[claimant_name].member_of.add(index)
                 group_claimants.add(self.claimants[claimant_name])
-            self.groups['active'][index] = Group(index, group_claimants)
+            self.groups["active"][index] = Group(index, group_claimants)
+
+    def check_groups_type(self):
+        """Checks whether _groups is a dictionary of group instances"""
+        if isinstance(self._groups, list):
+            return False
+        else:
+            return all(isinstance(item, Group) for item in self._groups.values())
+
+    def supersets(self):
+        for group1, group2 in permutations(self.groups["active"].values(), 2):
+            if group1.claimants <= group2.claimants:
+                group1.is_subset_of.add(group2.name)
+                group2.is_superset_of.add(group1.name)
+            if group2.claimants <= group1.claimants:
+                group2.is_subset_of.add(group1.name)
+                group1.is_superset_of.add(group2.name)
+
+    def deactivate_group(self, index):
+        if index in self.groups["active"]:
+            self.groups["inactive"][index] = self.groups["active"].pop(index)
+        else:
+            raise ValueError(
+                f"Trying to deactivate group {index}, but not present in active groups"
+            )
+
+
+class EXCSLottery(Lottery):
+    """
+    Implements the Composition-sensitive exclusive (CSE) lottery
+    """
+
+    def __init__(self, groups):
+        super().__init__(groups)
+        self.exclusivity_relations()
+        self.claims()
 
     def exclusivity_relations(self):
         """
@@ -75,21 +113,13 @@ class EXCSLottery:
                         claimant1
                     )
 
-    def supersets(self):
-        for group1, group2 in permutations(self.groups['active'].values(), 2):
-            if group1.claimants <= group2.claimants:
-                group1.is_subset_of.add(group2.name)
-                group2.is_superset_of.add(group1.name)
-            if group2.claimants <= group1.claimants:
-                group2.is_subset_of.add(group1.name)
-                group1.is_superset_of.add(group2.name)
-
     def claims(self):
         """
-        Given the set of benefittable groups compute the probabilities of receiving the benefits for each group
+        Given the set of benefittable groups compute the non-iterated probabilities of receiving the benefits for
+        each group
         :return:
         """
-        base_claim = 1 / len(self.claimants)
+        self.base_claim
         for claimant in self.claimants.values():
             total_exclusives = sum(
                 [
@@ -102,51 +132,47 @@ class EXCSLottery:
                 raise ValueError(f"{claimant.name=} is not a member of any group.")
             elif total_exclusives == 0:
                 for group_index in claimant.member_of:
-                    group = self.groups['active'][group_index]
-                    group.claim += base_claim / number_groups
+                    group = self.groups["active"][group_index]
+                    group.claim += self.base_claim / number_groups
             else:
                 for group_index in claimant.member_of:
-                    group = self.groups['active'][group_index]
+                    group = self.groups["active"][group_index]
                     if exclusive_in_group := claimant.others_exclusive_relative_to_this.get(
                         group_index
                     ):
                         group.claim += (
-                            base_claim * len(exclusive_in_group) / total_exclusives
+                            self.base_claim * len(exclusive_in_group) / total_exclusives
                         )
 
-    def initialize(self):
-        self.create_groups_and_claimants()
-        self.exclusivity_relations()
-        self.supersets()
-        self.claims()
-
-    def deactivate_group(self, index):
-        if index in self.groups['active']:
-            self.groups['inactive'][index] = self.groups['active'].pop(index)
-        else:
-            raise ValueError(f"Trying to deactivate group {index}, but not present in active groups")
-
     def iterate(self):
-        while len(self.groups['active']) > 0:
-            for index, group in self.groups['active'].copy().items():
-                if len(group.is_superset_of) > 0:  # don't compute groups, which still have active subgroups
-                    pass
-                else:
-                    if len(group.is_subset_of) > 0:
-                        new_groups = {i: copy.copy(self.groups['active'][i]) for i in group.is_subset_of}
-                        temp_lottery = EXCSLottery(new_groups)
-                        temp_lottery.initialize()
-                        for i, g in temp_lottery.groups['active'].items():
-                            self.groups['active'][i].claim += group.claim * g.claim
-                            self.groups['active'][i].is_superset_of.remove(index)
-                        group.claim = 0
-                    self.deactivate_group(index)
+        if not self.iterated:
+            while len(self.groups["active"]) > 0:
+                for index, group in self.groups["active"].copy().items():
+                    if (
+                        len(group.is_superset_of) > 0
+                    ):  # don't compute groups, which still have active subgroups
+                        pass
+                    else:
+                        if len(group.is_subset_of) > 0:
+                            new_groups = {
+                                i: copy.copy(self.groups["active"][i])
+                                for i in group.is_subset_of
+                            }
+                            temp_lottery = EXCSLottery(new_groups)
+                            for i, g in temp_lottery.groups["active"].items():
+                                self.groups["active"][i].claim += group.claim * g.claim
+                                self.groups["active"][i].is_superset_of.remove(index)
+                            group.claim = 0
+                        self.deactivate_group(index)
+        self.iterated = True
+
+    def compute(self):
+        self.iterate()
 
 
 if __name__ == "__main__":
     groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
     lottery = EXCSLottery(groupie)
-    lottery.initialize()
-    lottery.iterate()
-    for group in lottery.groups['inactive'].values():
-        print(f'{group.name=}, {group.claim}\n')
+    lottery.compute()
+    for group in lottery.groups["inactive"].values():
+        print(f"{group.name=}, {group.claim}\n")
