@@ -42,7 +42,18 @@ if 'numGroups' in st.session_state.keys():
                 key=f'{i}'))
         submitted = st.form_submit_button("Submit")
 
-if submitted and all([len(group) > 0 for group in groups]):
+removed_duplicates = []
+for group in groups:
+    if set(group) not in removed_duplicates:
+        removed_duplicates.append(set(group))
+
+if len(removed_duplicates) < len(groups):
+    st.error('Please make sure that all groups are unique.')
+
+if any([len(group) == 0 for group in groups]):
+    st.error('Please make sure that all groups are non-empty.')
+
+if submitted and all([len(group) > 0 for group in groups]) and len(removed_duplicates) == len(groups):
     lottery = EXCSLottery(groups)
     lottery.initialize()
     lottery.iterate()
@@ -53,15 +64,17 @@ if submitted and all([len(group) > 0 for group in groups]):
         if group.claim > 0:
             for claimant in group.claimants:
                 claimant_probabilities[claimant.name] = claimant_probabilities.get(claimant.name, 0) + group.claim
-    group_probabilities_s = pd.Series(data=group_probabilities, name='EXCS')
-    claimant_probabilities_s = pd.Series(data=claimant_probabilities, name='EXCS')
-    group_probabilities_s.index.name = 'group'
-    claimant_probabilities_s.index.name = 'claimant'
+    group_probabilities_series = pd.Series(data=group_probabilities, name='EXCS')
+    group_probabilities_series.sort_index(inplace=True)
+    group_probabilities_series.index.name = 'group'
+    claimant_probabilities_series = pd.Series(data=claimant_probabilities, name='EXCS')
+    claimant_probabilities_series.sort_index(inplace=True)
+    claimant_probabilities_series.index.name = 'claimant'
 
     st.subheader('Fairness metrics')
 
     st.subheader('Probability of benefitting a particular group')
-    st.write(group_probabilities_s)
+    st.write(group_probabilities_series)
 
     st.subheader('Probability of benefitting a particular claimant')
-    st.write(claimant_probabilities_s)
+    st.write(claimant_probabilities_series)
