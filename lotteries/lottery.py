@@ -243,9 +243,60 @@ class EQCSLottery(Lottery):
         self.computed = True
 
 
+class TILottery(Lottery):
+    """
+    Implements Timmermann's Individualist lottery
+    """
+
+    def __init__(self, groups):
+        super().__init__(groups)
+        self.lottery_name = "TI"
+
+    def create_lottery_with_claimant_deleted(self, claimant_name):
+        new_groups = {}
+        for i in self.claimants[claimant_name].member_of:
+            temp_group = copy.copy(self.groups["active"][i])
+            temp_group.claimants = [
+                cl for cl in temp_group.claimants if cl.name != claimant_name
+            ]
+            if temp_group.claimants:
+                new_groups[i] = temp_group
+        if new_groups:
+            return TILottery(new_groups)
+
+    def recursive_compute(self, result_dict, previous_prob=1.0):
+        number_claimants = len(self.claimants)
+        prob = previous_prob/number_claimants
+        if number_claimants == 1:  # only one claimant left -> should only happen if there is only one group left
+            only_active_group = list(self.groups["active"].keys())[0]
+            if result_dict.get(only_active_group):
+                result_dict[only_active_group] += prob
+            else:
+                result_dict[only_active_group] = prob
+        else:
+            for claimant_name in self.claimants:
+                if len(self.claimants[claimant_name].member_of) > 1:
+                    self.create_lottery_with_claimant_deleted(claimant_name).recursive_compute(result_dict=result_dict, previous_prob=prob)
+                else:
+                    only_active_group = list(self.claimants[claimant_name].member_of)[0]
+                    if result_dict.get(only_active_group):
+                        result_dict[only_active_group] += prob
+                    else:
+                        result_dict[only_active_group] = prob
+
+    def compute(self):
+        result_dict = {}
+        self.recursive_compute(result_dict, previous_prob=1.0)
+        active_group_names = list(self.groups["active"].keys())
+        for i in active_group_names:
+            self.groups["active"][i].claim = result_dict.get(i, 0)
+            self.deactivate_group(i)
+
+
 if __name__ == "__main__":
     groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
-    lottery = EQCSLottery(groupie)
+    result_dict = {}
+    lottery = TILottery(groupie)
     lottery.compute()
-    for group in lottery.groups["inactive"].values():
-        print(f"{group.name=}, {group.claim}\n")
+    # for group in lottery.groups["inactive"].values():
+    #     print(f"{group.name=}, {group.claim}\n")

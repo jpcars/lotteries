@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 from streamlit_tags import st_tags
 
-from lotteries.lottery import EXCSLottery, EQCSLottery
+from lotteries.lottery import EXCSLottery, EQCSLottery, TILottery
 
 st.title("Distribution Lotteries")
 
@@ -65,12 +65,12 @@ if duplicates:
 if submitted and (not empty_groups) and (not duplicates):
     group_series = []
     claimant_series = []
-    for LotteryCLass in [EXCSLottery, EQCSLottery]:
+    for LotteryCLass in [EXCSLottery, EQCSLottery, TILottery]:
         lottery = LotteryCLass(groups)
         lottery.compute()
         group_series_temp, claimant_series_temp = lottery.probabilities()
         group_series_temp.index = (
-                group_series_temp.index + 1
+            group_series_temp.index + 1
         )  # adding 1 in order to make the enumeration of groups in the app start at 1 instead of 0 # noqa: E501
         group_series.append(group_series_temp)
         claimant_series.append(claimant_series_temp)
