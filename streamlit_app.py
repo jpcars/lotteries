@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 from streamlit_tags import st_tags
 
+from lotteries.app_utils import validate_group_input
 from lotteries.lottery import EXCSLottery, EQCSLottery, TILottery
 
 st.title("Distribution Lotteries")
@@ -28,41 +29,34 @@ st.write("EQCS - Vong's equal composition sensitive lottery")
 st.write("TI - Timmermann's individualist lottery")
 
 st.subheader("Definition of the groups")
-with st.form("Number of groups"):
-    numProducts = st.number_input(
-        "How many groups of claimants are there?", key="numGroups", min_value=2
-    )
-    st.form_submit_button("Submit")
-
+input_method = st.selectbox(label='Select input method', options=['Choose an option', 'Manually', 'Predefined examples'])
 groups = []
-if "numGroups" in st.session_state.keys():
-    with st.form("Claimants in groups"):
-        for i in range(1, st.session_state["numGroups"] + 1):
-            groups.append(
-                st_tags(
-                    label=f"Names of claimants in group {i}:",
-                    text="Type name and press Enter to add",
-                    value=[],
-                    maxtags=-1,
-                    key=f"{i}",
+validated = True
+display_results = False
+if input_method == 'Manually':
+    with st.form("Number of groups"):
+        numProducts = st.number_input(
+            "How many groups of claimants are there?", key="numGroups", min_value=2
+        )
+        st.form_submit_button("Submit")
+
+    if "numGroups" in st.session_state.keys():
+        with st.form("Claimants in groups"):
+            for i in range(1, st.session_state["numGroups"] + 1):
+                groups.append(
+                    st_tags(
+                        label=f"Names of claimants in group {i}:",
+                        text="Type name and press Enter to add",
+                        value=[],
+                        maxtags=-1,
+                        key=f"{i}",
+                    )
                 )
-            )
-        submitted = st.form_submit_button("Submit")
+            display_results = st.form_submit_button("Submit")
 
-empty_groups = any([len(group) == 0 for group in groups])
-if empty_groups:
-    st.error("Please make sure that all groups are non-empty.")
+    validated = validate_group_input(groups)
 
-removed_duplicates = []
-for group in groups:
-    if set(group) not in removed_duplicates:
-        removed_duplicates.append(set(group))
-
-duplicates = len(removed_duplicates) < len(groups)
-if duplicates:
-    st.error("Please make sure that all groups are unique.")
-
-if submitted and (not empty_groups) and (not duplicates):
+if display_results and validated:
     group_series = []
     claimant_series = []
     for LotteryCLass in [EXCSLottery, EQCSLottery, TILottery]:
