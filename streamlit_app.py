@@ -32,7 +32,7 @@ st.write("TI - Timmermann's individualist lottery")
 st.subheader("Definition of the groups")
 input_method = st.selectbox(
     label="Select input method",
-    options=["Choose an option", "Manually", "Generalized Vong Example"],
+    options=["Choose an option", "Manually", "Predefined Examples"],
 )
 groups = []
 validated = True
@@ -59,32 +59,36 @@ if input_method == "Manually":
             display_results = st.form_submit_button("Submit")
 
     validated = validate_group_input(groups)
-
-elif input_method == "Generalized Vong Example":
-    st.write(
-        """
-        This example is taken from Vong. The total number of claimants is N and there are two different group sizes m and M with m < M and N must be divisible by M.
-        The set of benefitable group is constructed as follows:
-        - Any group of size m is benefitable
-        - The benefitable groups of size M form a disjoint cover of the set of claimants, i.e. every claimant is in one and only one of the larger groups.
-        """
+elif input_method == 'Predefined Examples':
+    example = input_method = st.selectbox(
+        label="Select an example",
+        options=["Choose an option", "Generalized Version of Vong's Example"],
     )
-    with st.form("Number of claimants"):
-        number_claimants = st.number_input(
-            "How many claimants are there?", key="number_claimants", min_value=9
+    if example == "Generalized Version of Vong's Example":
+        st.write(
+            """
+            This example is taken from Vong. The total number of claimants is N and there are two different group sizes m and M with m < M and N must be divisible by M.
+            The set of benefitable group is constructed as follows:
+            - Any group of size m is benefitable
+            - The benefitable groups of size M form a disjoint cover of the set of claimants, i.e. every claimant is in one and only one of the larger groups.
+            """
         )
-        smaller_group_size = st.number_input(
-            "What is the smaller group size?", key="smaller_groups", min_value=2
-        )
-        larger_group_size = st.number_input(
-            "What is the larger group size?", key="larger_groups", min_value=3
-        )
-        display_results = st.form_submit_button("Submit")
-        groups = small_large_example(
-            claimants=number_claimants,
-            small_group_size=smaller_group_size,
-            large_group_size=larger_group_size,
-        )
+        with st.form("Number of claimants"):
+            number_claimants = st.number_input(
+                "How many claimants are there?", key="number_claimants", min_value=9
+            )
+            smaller_group_size = st.number_input(
+                "What is the smaller group size?", key="smaller_groups", min_value=2
+            )
+            larger_group_size = st.number_input(
+                "What is the larger group size?", key="larger_groups", min_value=3
+            )
+            display_results = st.form_submit_button("Submit")
+            groups = small_large_example(
+                claimants=number_claimants,
+                small_group_size=smaller_group_size,
+                large_group_size=larger_group_size,
+            )
 
 
 if display_results and validated:
