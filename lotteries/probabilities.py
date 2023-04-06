@@ -5,9 +5,9 @@ def probability(claimants, group_size_coarse, group_size_fine=2):
     num = (
         group_size_coarse
         - 1
-        + comb(group_size_coarse - 1, group_size_fine - 1, exact=True)
+        + comb(group_size_coarse - 1, group_size_fine - 1, exact=True) * (group_size_fine - 1)
     )
-    denom = group_size_coarse - 1 + comb(claimants - 1, group_size_fine - 1, exact=True)
+    denom = group_size_coarse - 1 + comb(claimants - 1, group_size_fine - 1, exact=True) * (group_size_fine - 1)
     result = num / denom
     return result
 
