@@ -2,7 +2,7 @@ from scipy.special import comb
 import math
 
 
-def vong_example_1(claimants, group_size_coarse, group_size_fine=2, lottery="EXCS"):
+def vong_1(claimants, group_size_coarse, group_size_fine=2, lottery="EXCS"):
     """Implements a generalized version of Vong's example on p.342ff."""
     if lottery == "EXCS":
         num = (
@@ -39,7 +39,7 @@ def vong_example_1(claimants, group_size_coarse, group_size_fine=2, lottery="EXC
         )
 
 
-def vong_example_2(claimants, lottery="EXCS"):
+def vong_2(claimants, lottery="EXCS"):
     """Implements a generalized version of Vong's example on page ..."""
     if claimants % 2 != 0:
         raise ValueError('Number of claimants must be even.')

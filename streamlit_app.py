@@ -3,6 +3,7 @@ import streamlit as st
 from streamlit_tags import st_tags
 
 from lotteries.app_utils import validate_group_input
+from lotteries.examples import vong_1, vong_2
 from lotteries.group_constructions import small_large_example
 from lotteries.lottery import EXCSLottery, EQCSLottery, TILottery
 
@@ -58,57 +59,82 @@ if input_method == "Manually":
                 )
             display_results = st.form_submit_button("Submit")
 
-    validated = validate_group_input(groups)
+        validated = validate_group_input(groups)
+        if display_results and validated:
+            group_series = []
+            claimant_series = []
+            for LotteryCLass in [EXCSLottery, EQCSLottery, TILottery]:
+                lottery = LotteryCLass(groups)
+                lottery.compute()
+                group_series_temp, claimant_series_temp = lottery.probabilities()
+                group_series_temp.index = (
+                        group_series_temp.index + 1
+                )  # adding 1 in order to make the enumeration of groups in the app start at 1 instead of 0 # noqa: E501
+                group_series.append(group_series_temp)
+                claimant_series.append(claimant_series_temp)
+            group_df = pd.concat(group_series, axis=1)
+            claimant_df = pd.concat(claimant_series, axis=1)
+            st.subheader("Fairness metrics")
+
+            st.subheader("Probability of benefiting a particular group")
+            st.write(group_df)
+
+            st.subheader("Probability of benefiting a particular claimant")
+            st.write(claimant_df)
+
 elif input_method == 'Predefined Examples':
     example = input_method = st.selectbox(
         label="Select an example",
-        options=["Choose an option", "Generalized Version of Vong's Example"],
+        options=["Choose an option", "Vong 1", "Vong 2"],
     )
-    if example == "Generalized Version of Vong's Example":
+    if example == "Vong 1":
         st.write(
             """
-            This example is taken from Vong. The total number of claimants is N and there are two different group sizes m and M with m < M and N must be divisible by M.
+            This example is taken from Vong. The total number of claimants is N and there are two different group sizes p and q. N must be divisible by q.
             The set of benefitable group is constructed as follows:
-            - Any group of size m is benefitable
-            - The benefitable groups of size M form a disjoint cover of the set of claimants, i.e. every claimant is in one and only one of the larger groups.
+            - Any group of size p is benefitable
+            - The benefitable groups of size q form a disjoint cover of the set of claimants, i.e. every claimant is in one and only one of the groups of size q.
             """
         )
         with st.form("Number of claimants"):
             number_claimants = st.number_input(
                 "How many claimants are there?", key="number_claimants", min_value=9
             )
-            smaller_group_size = st.number_input(
-                "What is the smaller group size?", key="smaller_groups", min_value=2
+            size_1 = st.number_input(
+                "What is p?", key="size_1", min_value=2
             )
-            larger_group_size = st.number_input(
-                "What is the larger group size?", key="larger_groups", min_value=3
+            size_2 = st.number_input(
+                "What is q?", key="size_2", min_value=3
             )
             display_results = st.form_submit_button("Submit")
-            groups = small_large_example(
-                claimants=number_claimants,
-                small_group_size=smaller_group_size,
-                large_group_size=larger_group_size,
+            if number_claimants % size_2 != 0:
+                st.error('N is not divisible by q.')
+            probabilities = {}
+            for lottery in ['EXCS', 'EQCS', 'IL']:
+                probabilities[lottery] = vong_1(number_claimants, size_2, group_size_fine=size_1, lottery=lottery)
+            st.subheader('Prbability of selecting one of the groups of size q')
+            st.write(probabilities)
+
+    elif example == "Vong 2":
+        st.write(
+            """
+            This example is taken from Vong. The total number of claimants is N, where N is even. In the paper Vong uses N=1000. There are three groups:
+            - Group 1: Claimants 1 through N/2
+            - Group 2: Claimants N/2+1 through N
+            - Group 3: Claimants 2 through N-1
+            
+            
+            """
+        )
+        with st.form("Number of claimants"):
+            number_claimants = st.number_input(
+                "How many claimants are there?", key="number_claimants", min_value=10
             )
-
-
-if display_results and validated:
-    group_series = []
-    claimant_series = []
-    for LotteryCLass in [EXCSLottery, EQCSLottery, TILottery]:
-        lottery = LotteryCLass(groups)
-        lottery.compute()
-        group_series_temp, claimant_series_temp = lottery.probabilities()
-        group_series_temp.index = (
-            group_series_temp.index + 1
-        )  # adding 1 in order to make the enumeration of groups in the app start at 1 instead of 0 # noqa: E501
-        group_series.append(group_series_temp)
-        claimant_series.append(claimant_series_temp)
-    group_df = pd.concat(group_series, axis=1)
-    claimant_df = pd.concat(claimant_series, axis=1)
-    st.subheader("Fairness metrics")
-
-    st.subheader("Probability of benefiting a particular group")
-    st.write(group_df)
-
-    st.subheader("Probability of benefiting a particular claimant")
-    st.write(claimant_df)
+            display_results = st.form_submit_button("Submit")
+            if number_claimants % 2 != 0:
+                st.error("Please make sure that the number of claimants is even.")
+            probabilities = {}
+            for lottery in ['EXCS', 'EQCS', 'IL']:
+                probabilities[lottery] = vong_2(number_claimants, lottery=lottery)
+            st.subheader("Probability of benefiting one of the larger groups")
+            st.write(probabilities)
