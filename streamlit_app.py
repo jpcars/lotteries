@@ -138,5 +138,5 @@ elif input_method == 'Predefined Examples':
                 probabilities = {}
                 for lottery in ['EXCS', 'EQCS', 'IL']:
                     probabilities[lottery] = vong_2(number_claimants, lottery=lottery)
-                st.subheader("Probability of benefiting one of the larger groups")
+                st.subheader("Probability of selecting group 3")
                 st.write(probabilities)
