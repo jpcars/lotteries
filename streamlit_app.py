@@ -109,11 +109,12 @@ elif input_method == 'Predefined Examples':
             display_results = st.form_submit_button("Submit")
             if number_claimants % size_2 != 0:
                 st.error('N is not divisible by q.')
-            probabilities = {}
-            for lottery in ['EXCS', 'EQCS', 'IL']:
-                probabilities[lottery] = vong_1(number_claimants, size_2, group_size_fine=size_1, lottery=lottery)
-            st.subheader('Prbability of selecting one of the groups of size q')
-            st.write(probabilities)
+            else:
+                probabilities = {}
+                for lottery in ['EXCS', 'EQCS', 'IL']:
+                    probabilities[lottery] = vong_1(number_claimants, size_2, group_size_fine=size_1, lottery=lottery)
+                st.subheader('Prbability of selecting one of the groups of size q')
+                st.write(probabilities)
 
     elif example == "Vong 2":
         st.write(
@@ -133,8 +134,9 @@ elif input_method == 'Predefined Examples':
             display_results = st.form_submit_button("Submit")
             if number_claimants % 2 != 0:
                 st.error("Please make sure that the number of claimants is even.")
-            probabilities = {}
-            for lottery in ['EXCS', 'EQCS', 'IL']:
-                probabilities[lottery] = vong_2(number_claimants, lottery=lottery)
-            st.subheader("Probability of benefiting one of the larger groups")
-            st.write(probabilities)
+            else:
+                probabilities = {}
+                for lottery in ['EXCS', 'EQCS', 'IL']:
+                    probabilities[lottery] = vong_2(number_claimants, lottery=lottery)
+                st.subheader("Probability of benefiting one of the larger groups")
+                st.write(probabilities)
