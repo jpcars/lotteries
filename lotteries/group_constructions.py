@@ -43,10 +43,11 @@ def small_large_example(claimants, small_group_size, large_group_size):
         )
     result = create_size_k_subsets(
         claimants, small_group_size, variant="all"
-    ) + create_size_k_subsets(claimants, large_group_size, variant="ordered_disjoint_cover")
+    ) + create_size_k_subsets(
+        claimants, large_group_size, variant="ordered_disjoint_cover"
+    )
     return result
 
 
 if __name__ == "__main__":
-    print(small_large_example(claimants=9, small_group_size=2, large_group_size=3)
-)
+    print(small_large_example(claimants=9, small_group_size=2, large_group_size=3))

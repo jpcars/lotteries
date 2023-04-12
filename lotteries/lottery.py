@@ -266,8 +266,10 @@ class TILottery(Lottery):
 
     def recursive_compute(self, result_dict, previous_prob=1.0):
         number_claimants = len(self.claimants)
-        prob = previous_prob/number_claimants
-        if number_claimants == 1:  # only one claimant left -> should only happen if there is only one group left
+        prob = previous_prob / number_claimants
+        if (
+            number_claimants == 1
+        ):  # only one claimant left -> should only happen if there is only one group left
             only_active_group = list(self.groups["active"].keys())[0]
             if result_dict.get(only_active_group):
                 result_dict[only_active_group] += prob
@@ -276,7 +278,9 @@ class TILottery(Lottery):
         else:
             for claimant_name in self.claimants:
                 if len(self.claimants[claimant_name].member_of) > 1:
-                    self.create_lottery_with_claimant_deleted(claimant_name).recursive_compute(result_dict=result_dict, previous_prob=prob)
+                    self.create_lottery_with_claimant_deleted(
+                        claimant_name
+                    ).recursive_compute(result_dict=result_dict, previous_prob=prob)
                 else:
                     only_active_group = list(self.claimants[claimant_name].member_of)[0]
                     if result_dict.get(only_active_group):
