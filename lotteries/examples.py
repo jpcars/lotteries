@@ -1,4 +1,4 @@
-from scipy.special import comb, poch
+from scipy.special import comb
 import math
 import numpy as np
 
@@ -22,7 +22,7 @@ def vong_1(claimants, size_1, size_2, lottery="EXCS"):
             denom = 1 + comb(claimants - 1, size_1 - 1, exact=True)
             result = num / denom
             return result
-        elif lottery == "IL":
+        elif lottery == "TI":
             return (
                 math.factorial(size_2 - 1)
                 * math.factorial(claimants - size_1)
@@ -41,7 +41,7 @@ def vong_2(claimants, lottery="EXCS"):
         return (claimants - 2) ** 2 / claimants**2
     elif lottery == "EQCS":
         return (claimants - 2) / (2 * claimants)
-    elif lottery == "IL":
+    elif lottery == "TI":
         summands = np.array(
             [
                 1

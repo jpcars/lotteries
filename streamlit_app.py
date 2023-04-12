@@ -4,7 +4,6 @@ from streamlit_tags import st_tags
 
 from lotteries.app_utils import validate_group_input
 from lotteries.examples import vong_1, vong_2
-from lotteries.group_constructions import small_large_example
 from lotteries.lottery import EXCSLottery, EQCSLottery, TILottery
 
 st.title("Distribution Lotteries")
@@ -114,7 +113,7 @@ elif input_method == "Predefined Examples":
                 st.error("Please make sure that p!=q.")
             else:
                 probabilities = {}
-                for lottery in ["EXCS", "EQCS", "IL"]:
+                for lottery in ["EXCS", "EQCS", "TI"]:
                     probabilities[lottery] = vong_1(
                         number_claimants,
                         size_1=size_1,
@@ -149,7 +148,7 @@ elif input_method == "Predefined Examples":
                 st.error("Please make sure that the number of claimants is even.")
             else:
                 probabilities = {}
-                for lottery in ["EXCS", "EQCS", "IL"]:
+                for lottery in ["EXCS", "EQCS", "TI"]:
                     probabilities[lottery] = vong_2(number_claimants, lottery=lottery)
                 st.subheader("Probability of selecting group 3")
                 st.write(probabilities)

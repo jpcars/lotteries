@@ -147,7 +147,6 @@ class EXCSLottery(Lottery):
         """
         Given the set of groups compute the non-iterated probabilities of receiving the benefits for
         each group
-        :return:
         """
         for claimant in self.claimants.values():
             total_exclusives = sum(
