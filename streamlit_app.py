@@ -110,13 +110,15 @@ elif input_method == "Predefined Examples":
             display_results = st.form_submit_button("Submit")
             if number_claimants % size_2 != 0:
                 st.error("N is not divisible by q.")
+            elif size_1 == size_2:
+                st.error("Please make sure that p!=q.")
             else:
                 probabilities = {}
                 for lottery in ["EXCS", "EQCS", "IL"]:
                     probabilities[lottery] = vong_1(
                         number_claimants,
-                        size_2,
-                        group_size_fine=size_1,
+                        size_1=size_1,
+                        size_2=size_2,
                         lottery=lottery,
                     )
                 st.subheader("Prbability of selecting one of the groups of size q")
@@ -126,9 +128,11 @@ elif input_method == "Predefined Examples":
         st.write(
             """
             This example is taken from Vong 2020 p.339ff. The total number of claimants is N, where N is even. There are three groups:
-            - Group 1: Claimants 1 through N/2
-            - Group 2: Claimants N/2+1 through N
-            - Group 3: Claimants 2 through N-1
+            - Group 1: Claimants 1 through N/2 (size: N/2)
+            - Group 2: Claimants N/2+1 through N (size: N/2)
+            - Group 3: Claimants 2 through N-1 (size: N-2)
+            
+            Group 3 is the largest group for N>4.
             
             In the paper Vong uses N=1000.
             """
