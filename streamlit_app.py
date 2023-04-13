@@ -28,6 +28,7 @@ st.subheader("Glossary")
 st.write("EXCS - Vong's exclusive composition sensitive lottery")
 st.write("EQCS - Vong's equal composition sensitive lottery")
 st.write("TI - Timmermann's individualist lottery")
+st.write("Pruning - Refers to the procedure of deleting groups which are proper subgroups of other groups before performing the lottery. Some lotteries are sensitive to this (e.g. EXCS, EQCS), some are not (e.g. TI)")
 
 st.subheader("Definition of the groups")
 input_method = st.selectbox(
@@ -63,14 +64,15 @@ if input_method == "Manually":
             group_series = []
             claimant_series = []
             for LotteryCLass in [EXCSLottery, EQCSLottery, TILottery]:
-                lottery = LotteryCLass(groups)
-                lottery.compute()
-                group_series_temp, claimant_series_temp = lottery.probabilities()
-                group_series_temp.index = (
-                    group_series_temp.index + 1
-                )  # adding 1 in order to make the enumeration of groups in the app start at 1 instead of 0 # noqa: E501
-                group_series.append(group_series_temp)
-                claimant_series.append(claimant_series_temp)
+                for pruned in [False, True]:
+                    lottery = LotteryCLass(groups, pruned)
+                    lottery.compute()
+                    group_series_temp, claimant_series_temp = lottery.probabilities()
+                    group_series_temp.index = (
+                        group_series_temp.index + 1
+                    )  # adding 1 in order to make the enumeration of groups in the app start at 1 instead of 0 # noqa: E501
+                    group_series.append(group_series_temp)
+                    claimant_series.append(claimant_series_temp)
             group_df = pd.concat(group_series, axis=1)
             claimant_df = pd.concat(claimant_series, axis=1)
             st.subheader("Fairness metrics")

@@ -26,14 +26,17 @@ class Lottery:
     Base class for the different lotteries
     """
 
-    def __init__(self, groups):
+    def __init__(self, groups, pruned=False):
         self._groups = groups
+        self.pruned = pruned
         self.claimants = {}
         self.groups = {"active": {}, "inactive": {}}
         self.lottery_name = None
         self.initialized = False
         self.computed = False
         self.initialize()
+        if self.pruned:
+            self.subgroup_pruning()
         self.base_claim = 1 / len(self.claimants)
 
     def initialize(self):
@@ -84,6 +87,29 @@ class Lottery:
                 f"Trying to deactivate group {index}, but not present in active groups"
             )
 
+    def subgroup_pruning(self):
+        """
+        1) Deactivate groups, which are subgroups of other groups.
+        2) Delete these groups from claimant.member_of
+        3) Delete these groups from group.is_superset_of
+        """
+        # 1)
+        active_group_names = list(self.groups["active"].keys())
+        for i in active_group_names:
+            if self.groups["active"][i].is_subset_of:
+                self.groups["active"][i].claim = 0
+                self.deactivate_group(i)
+        # 2)
+        active_group_names = set(self.groups["active"].keys())
+        for claimant in self.claimants.values():
+            claimant.member_of = claimant.member_of.intersection(active_group_names)
+        # 3)
+        active_group_names = set(self.groups["active"].keys())
+        for i in active_group_names:
+            self.groups["active"][i].is_superset_of = self.groups["active"][
+                i
+            ].is_superset_of.intersection(active_group_names)
+
     def probabilities(self) -> (pd.Series, pd.Series):
         """
         Computes the probabilities that any particular group and any particular claimant will win the lottery
@@ -99,12 +125,12 @@ class Lottery:
                         claimant_probabilities.get(claimant.name, 0) + group.claim
                     )
         group_probabilities_series = pd.Series(
-            data=group_probabilities, name=self.lottery_name
+            data=group_probabilities, name=self.lottery_name + ('_pruned' if self.pruned else '')
         )
         group_probabilities_series.sort_index(inplace=True)
         group_probabilities_series.index.name = "group"
         claimant_probabilities_series = pd.Series(
-            data=claimant_probabilities, name=self.lottery_name
+            data=claimant_probabilities, name=self.lottery_name + ('_pruned' if self.pruned else '')
         )
         claimant_probabilities_series.sort_index(inplace=True)
         claimant_probabilities_series.index.name = "claimant"
@@ -116,8 +142,8 @@ class EXCSLottery(Lottery):
     Implements the Exclusive Composition-sensitive lottery
     """
 
-    def __init__(self, groups):
-        super().__init__(groups)
+    def __init__(self, groups, pruned=False):
+        super().__init__(groups, pruned)
         self.lottery_name = "EXCS"
         self.exclusivity_relations()
         self.claims()
@@ -200,8 +226,8 @@ class EQCSLottery(Lottery):
     Implements the Equal Composition-Sensitive lottery
     """
 
-    def __init__(self, groups):
-        super().__init__(groups)
+    def __init__(self, groups, pruned=False):
+        super().__init__(groups, pruned)
         self.lottery_name = "EQCS"
         self.claims()
 
@@ -247,8 +273,8 @@ class TILottery(Lottery):
     Implements Timmermann's Individualist lottery
     """
 
-    def __init__(self, groups):
-        super().__init__(groups)
+    def __init__(self, groups, pruned=False):
+        super().__init__(groups, pruned)
         self.lottery_name = "TI"
 
     def create_lottery_with_claimant_deleted(self, claimant_name):
@@ -299,7 +325,7 @@ class TILottery(Lottery):
 if __name__ == "__main__":
     groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
     result_dict = {}
-    lottery = TILottery(groupie)
+    lottery = EXCSLottery(groupie, pruned=True)
     lottery.compute()
-    # for group in lottery.groups["inactive"].values():
-    #     print(f"{group.name=}, {group.claim}\n")
+    for group in lottery.groups["inactive"].values():
+        print(f"{group.name=}, {group.claim}\n")
