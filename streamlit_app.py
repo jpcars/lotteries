@@ -6,19 +6,18 @@ from lotteries.app_utils import validate_group_input
 from lotteries.examples import vong_1, vong_2
 from lotteries.lottery import EXCSLottery, EQCSLottery, TILottery
 
-st.title("Distribution Lotteries")
+st.title("Rescue Lotteries")
 
 st.subheader("Introduction")
 st.write(
     """
 This is a small app that is supposed to compute useful quantities for different lottery procedures,
-which are commonplace in ethical debates surrounding the distribution of goods. So far this app is very
+which are commonplace in ethical debates surrounding recues dilemmas. So far this app is very
 minimalistic. Given a set of possibly overlapping groups it computes the probabilities that any particular
 group and any particular claimant will win the lottery. So far only Vong\'s exclusive and equal composition-sensitive
-lotteries are implemented.
+lotteries and Timmermann's individualist lottery are implemented.
 
 Further plans involve:
-- implementing other lotteries, such as Timmermann\'s individualist lottery (if you want others, please say so)
 - implementing metrics to evaluate how well these lotteries fulfill certain potential ethical criteria,
 e.g. absolute fairness, comparative fairness (both in Vong\'s Paper) or procedural fairness (as described in Rasmussen)
 """
