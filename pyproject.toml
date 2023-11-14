@@ -12,7 +12,7 @@ sympy = "^1.11.1"
 scipy = "^1.10.0"
 streamlit = "^1.19.0"
 streamlit-tags = "1.2.8"
-pynauty = {path = "pynauty-2.8.6.tar.gz",develop = true}
+pynauty = "2.8.6"
 hypernetx = "^2.0.0.post1"
 
 

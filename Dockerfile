@@ -16,7 +16,8 @@ RUN pip install "poetry==$POETRY_VERSION"
 
 # Copy only requirements to cache them in docker layer
 WORKDIR /usr/local/
-COPY . .
+COPY pyproject.toml README.md .
+COPY lotteries ./lotteries
 
 RUN apt-get update && apt-get install -y \
     make \
