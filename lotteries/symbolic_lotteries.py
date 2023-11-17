@@ -23,6 +23,9 @@ class Lottery:
         :param remove_subgroups: if true, all courses of action, which are entirely contained in others (i.e. every
                     claimant has at least the same probability to be saved) are deleted in the beginning
         """
+        self.group_generators = None
+        self.orbits = None
+        self.claimant_generators = None
         self.lottery_name = None
         self.claimant_mat = claimant_mat
         self.number_claimants = self.claimant_mat.shape[0]
@@ -40,7 +43,6 @@ class Lottery:
         self.claims_mat = None
         self.group_probabilities = None
         self.nauty_graph = None
-        self.automorphisms = None
         self.supersets = defaultdict(set)
         self.subsets = defaultdict(set)
 
@@ -130,18 +132,17 @@ class Lottery:
         ]
 
     def compute_autgrp(self):
-        generators, _, _, orbits, orbits_no = pn.autgrp(self.nauty_graph)
-        self.claimant_generators = [
-            generator[: self.number_claimants] for generator in generators
-        ]
-        self.claimant_generators = [
-            generator[
-                self.number_claimants : self.number_claimants + self.number_groups
+        generators, _, _, orbits, _ = pn.autgrp(self.nauty_graph)
+        generators = np.array(generators)
+        orbits = np.array(orbits)
+        self.claimant_generators = generators[:, : self.number_claimants]
+        self.group_generators = (
+            generators[
+                :, self.number_claimants : self.number_claimants + self.number_groups
             ]
-            for generator in generators
-        ]
+            - self.number_claimants
+        )
         self.orbits = orbits[: self.number_claimants + self.number_groups]
-        self.automorphisms = pn.autgrp(self.nauty_graph)
 
     def store_values(self, prob_dict) -> None:
         """
@@ -386,8 +387,6 @@ if __name__ == "__main__":
             my_array = np.hstack([my_array, newcol])
     lottery = EXCSLottery(claimant_mat=my_array)
     print(my_array.shape)
-    generators, grpsize1, grpsize2, orbits, orbits_no = lottery.automorphisms
-    print(orbits[: my_array.shape[0] + my_array.shape[1]])
 
     def to_cycles(perm):
         pi = {i: p for i, p in enumerate(perm)}
@@ -402,7 +401,7 @@ if __name__ == "__main__":
             cycles.append(cycle)
         return cycles
 
-    for generator in generators:
-        print([tuple(i) for i in to_cycles(generator) if len(i) > 1])
+    print(f"{lottery.claimant_generators=}")
+    print(f"{lottery.group_generators=}")
     # probs = lottery.compute(my_dict)
     # print(probs)
