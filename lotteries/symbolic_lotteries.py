@@ -23,6 +23,8 @@ class Lottery:
         :param remove_subgroups: if true, all courses of action, which are entirely contained in others (i.e. every
                     claimant has at least the same probability to be saved) are deleted in the beginning
         """
+        self.group_orbits = None
+        self.claimant_orbits = None
         self.group_generators = None
         self.orbits = None
         self.claimant_generators = None
@@ -142,7 +144,11 @@ class Lottery:
             ]
             - self.number_claimants
         )
-        self.orbits = orbits[: self.number_claimants + self.number_groups]
+        self.claimant_orbits = orbits[: self.number_claimants]
+        self.group_orbits = (
+            orbits[self.number_claimants : self.number_claimants + self.number_groups]
+            - self.number_claimants
+        )
 
     def store_values(self, prob_dict) -> None:
         """
@@ -403,5 +409,7 @@ if __name__ == "__main__":
 
     print(f"{lottery.claimant_generators=}")
     print(f"{lottery.group_generators=}")
+    print(lottery.claimant_orbits)
+    print(lottery.group_orbits)
     # probs = lottery.compute(my_dict)
     # print(probs)
