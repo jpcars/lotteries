@@ -21,10 +21,6 @@ class Lottery:
         :param remove_subgroups: if true, all courses of action, which are entirely contained in others (i.e. every
                     claimant has at least the same probability to be saved) are deleted in the beginning
         """
-        self.supersets2 = None
-        self.subsets2 = None
-        self.suborbits2 = None
-        self.superorbits2 = None
         self.suborbits = None
         self.superorbits = None
         self.group_orbits = None
@@ -208,36 +204,6 @@ class Lottery:
                 return probabilities[self.inverse_canon_group_label]
 
     def compute_supersets(self):
-        A = self.claimant_mat
-        supersets = {}
-        subsets = {}
-        superorbits = {}
-        suborbits = {}
-        for group1 in range(self.number_groups):
-            group1orbit = self.orbits["groups"]["orbit_id"][group1]
-            supersets_of_group1 = set()
-            superorbit_of_group1orbit = set()
-            subsets_of_group1 = set()
-            suborbit_of_group1orbit = set()
-            for group2 in range(self.number_groups):
-                group2orbit = self.orbits["groups"]["orbit_id"][group2]
-                if ((A[:, group1] <= A[:, group2]).all()) & (group1 != group2):
-                    supersets_of_group1.add(group2)
-                    superorbit_of_group1orbit.add(group2orbit)
-                if ((A[:, group2] <= A[:, group1]).all()) & (group1 != group2):
-                    subsets_of_group1.add(group2)
-                    suborbit_of_group1orbit.add(group2orbit)
-            supersets[group1] = supersets_of_group1
-            subsets[group1] = subsets_of_group1
-            superorbits[group1orbit] = superorbit_of_group1orbit
-            suborbits[group1orbit] = suborbit_of_group1orbit
-        self.supersets = supersets
-        self.subsets = subsets
-        self.superorbits = superorbits
-        self.suborbits = suborbits
-
-    def compute_supersets(self):
-        # TODO: add orbit stuff
         A = self.claimant_mat
         if A.shape[1] == 1:
             self.subsets = {0: set()}
