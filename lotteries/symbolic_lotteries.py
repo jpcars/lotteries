@@ -1,9 +1,7 @@
+import itertools
 from collections import defaultdict
-from itertools import permutations
-from types import NoneType
-from typing import Optional, Union
+from typing import Optional
 
-import pandas as pd
 import numpy as np
 import pynauty as pn
 
@@ -23,6 +21,12 @@ class Lottery:
         :param remove_subgroups: if true, all courses of action, which are entirely contained in others (i.e. every
                     claimant has at least the same probability to be saved) are deleted in the beginning
         """
+        self.supersets2 = None
+        self.subsets2 = None
+        self.suborbits2 = None
+        self.superorbits2 = None
+        self.suborbits = None
+        self.superorbits = None
         self.group_orbits = None
         self.claimant_orbits = None
         self.group_generators = None
@@ -48,10 +52,11 @@ class Lottery:
         self.supersets = defaultdict(set)
         self.subsets = defaultdict(set)
 
-        self.compute_supersets()
         self.compute_useful_matrices()
         self.construct_nauty_graph()
         self.compute_autgrp()
+        self.compute_supersets()
+        self.compute_supersets_2()
         self.compute_canon_labels()
 
         self.base_claim = 1 / self.claimant_mat.shape[0]
@@ -133,22 +138,46 @@ class Lottery:
             self.canon_group_label.index(i) for i in range(len(self.canon_group_label))
         ]
 
+    def compute_generators(self, generators):
+        if generators:
+            generators = np.array(generators)
+            self.claimant_generators = generators[:, : self.number_claimants]
+            self.group_generators = (
+                generators[
+                    :,
+                    self.number_claimants : self.number_claimants + self.number_groups,
+                ]
+                - self.number_claimants
+            )
+
+    @staticmethod
+    def orbit_reps(orbits):
+        orbit_dict = {}
+        for representative in np.unique(orbits):
+            orbit_dict[representative] = np.argwhere(orbits == representative).flatten()
+        return orbit_dict
+
+    def compute_orbits(self, orbits):
+        orbits = np.array(orbits)
+        claimant_orbits, group_orbits, _ = np.split(
+            orbits, [self.number_claimants, self.number_claimants + self.number_groups]
+        )
+        group_orbits = group_orbits - self.number_claimants
+        self.orbits = {
+            "claimants": {
+                "orbit_id": claimant_orbits,
+                "members": self.orbit_reps(claimant_orbits),
+            },
+            "groups": {
+                "orbit_id": group_orbits,  # array of all groups with their respective orbit ids
+                "members": self.orbit_reps(group_orbits),
+            },
+        }
+
     def compute_autgrp(self):
         generators, _, _, orbits, _ = pn.autgrp(self.nauty_graph)
-        generators = np.array(generators)
-        orbits = np.array(orbits)
-        self.claimant_generators = generators[:, : self.number_claimants]
-        self.group_generators = (
-            generators[
-                :, self.number_claimants : self.number_claimants + self.number_groups
-            ]
-            - self.number_claimants
-        )
-        self.claimant_orbits = orbits[: self.number_claimants]
-        self.group_orbits = (
-            orbits[self.number_claimants : self.number_claimants + self.number_groups]
-            - self.number_claimants
-        )
+        self.compute_generators(generators)
+        self.compute_orbits(orbits)
 
     def store_values(self, prob_dict) -> None:
         """
@@ -171,32 +200,85 @@ class Lottery:
         Check whether there is an entry for the certificate. If so, retrieve results and do backwards translation
         :return:
         """
-        print("check 0")
         assert (
             self.inverse_canon_group_label
         ), "self.inverse_canon_group_label should be set at this point"
         if (graph_dict := prob_dict.get(self.nauty_certificate)) is not None:
-            print("check 1")
             if (probabilities := graph_dict.get(self.lottery_name)) is not None:
-                print("check 2")
                 return probabilities[self.inverse_canon_group_label]
 
     def compute_supersets(self):
         A = self.claimant_mat
         supersets = {}
         subsets = {}
+        superorbits = {}
+        suborbits = {}
         for group1 in range(self.number_groups):
+            group1orbit = self.orbits["groups"]["orbit_id"][group1]
             supersets_of_group1 = set()
+            superorbit_of_group1orbit = set()
             subsets_of_group1 = set()
+            suborbit_of_group1orbit = set()
             for group2 in range(self.number_groups):
+                group2orbit = self.orbits["groups"]["orbit_id"][group2]
                 if ((A[:, group1] <= A[:, group2]).all()) & (group1 != group2):
                     supersets_of_group1.add(group2)
+                    superorbit_of_group1orbit.add(group2orbit)
                 if ((A[:, group2] <= A[:, group1]).all()) & (group1 != group2):
                     subsets_of_group1.add(group2)
+                    suborbit_of_group1orbit.add(group2orbit)
             supersets[group1] = supersets_of_group1
             subsets[group1] = subsets_of_group1
+            superorbits[group1orbit] = superorbit_of_group1orbit
+            suborbits[group1orbit] = suborbit_of_group1orbit
         self.supersets = supersets
         self.subsets = subsets
+        self.superorbits = superorbits
+        self.suborbits = suborbits
+
+    def compute_supersets(self):
+        # TODO: add orbit stuff
+        A = self.claimant_mat
+        if A.shape[1] == 1:
+            self.subsets = {0: set()}
+            self.supersets = {0: set()}
+            self.suborbits = {0: set()}
+            self.superorbits = {0: set()}
+        else:
+
+            def greater_equal_all(x, y):
+                return np.greater_equal(x, y).all(axis=0)
+
+            greater_equal_array = np.zeros((A.shape[1], A.shape[1]))
+            permutations = np.array(list(itertools.permutations(range(A.shape[1]), 2)))
+
+            greater_equal_array[
+                permutations[:, 0], permutations[:, 1]
+            ] = greater_equal_all(A[:, permutations[:, 0]], A[:, permutations[:, 1]])
+            self.subsets = {
+                key: set(np.argwhere(value == 1).flatten())
+                for key, value in enumerate(greater_equal_array)
+            }
+            self.supersets = {
+                key: set(np.argwhere(value == 1).flatten())
+                for key, value in enumerate(greater_equal_array.T)
+            }
+            self.suborbits = {}
+            for orbit_rep in self.orbits['groups']['members']:
+                if self.subsets[orbit_rep]:
+                    subsets_of_orbit_rep = np.array(list(self.subsets[orbit_rep]))
+                    orbits_of_subsets_of_orbit_rep = self.orbits['groups']['orbit_id'][subsets_of_orbit_rep]
+                    self.suborbits[orbit_rep] = set(orbits_of_subsets_of_orbit_rep)
+                else:
+                    self.suborbits[orbit_rep] = set()
+            self.superorbits = {}
+            for orbit_rep in self.orbits['groups']['members']:
+                if self.supersets[orbit_rep]:
+                    supersets_of_orbit_rep = np.array(list(self.supersets[orbit_rep]))
+                    orbits_of_supersets_of_orbit_rep = self.orbits['groups']['orbit_id'][supersets_of_orbit_rep]
+                    self.superorbits[orbit_rep] = set(orbits_of_supersets_of_orbit_rep)
+                else:
+                    self.superorbits[orbit_rep] = set()
 
 
 class GroupBasedLottery(Lottery):
@@ -212,10 +294,10 @@ class GroupBasedLottery(Lottery):
         if (probabilities := self.retrieve_values(prob_dict=prob_dict)) is not None:
             return probabilities
         else:
-            active_groups = set(range(self.number_groups))
             if (self.number_groups == 1) | (self.number_claimants == 1):
                 return self.claims_mat.sum(axis=0)
             else:
+                active_groups = set(range(self.number_groups))
                 probabilities = self.claims_mat.sum(axis=0)
                 while len(active_groups) > 0:
                     active_groups_copy = active_groups.copy()
@@ -250,6 +332,61 @@ class GroupBasedLottery(Lottery):
                 self.store_values(prob_dict=prob_dict)
                 return probabilities
 
+    def compute_on_orbits(self) -> np.array:
+        probabilities = self.claims_mat.sum(axis=0)
+        if len(np.unique(self.orbits["groups"]["orbit_id"])) == 1:
+            return probabilities
+        else:
+            active_orbit_reps = set(self.orbits["groups"]["members"].keys())
+            while len(active_orbit_reps) > 0:
+                active_orbits_copy = active_orbit_reps.copy()
+                for orbit in active_orbits_copy:
+                    if (
+                        len(self.suborbits[orbit].intersection(active_orbit_reps)) > 0
+                    ):  # don't compute orbits, which still have active suborbits
+                        pass
+                    else:
+                        # if orbits has superorbits, iterate on the lottery only on the superorbits
+                        # if it doesn't: don't do anything
+                        bigger_groups = sorted(list(self.supersets[orbit]))
+                        bigger_orbits = self.orbits["groups"]["orbit_id"][bigger_groups]
+                        if len(bigger_groups) > 0:
+                            smaller_mat = self.claims_mat[:, bigger_groups]
+                            smaller_mat = smaller_mat[~np.all(smaller_mat == 0, axis=1)]
+                            next_lottery_iteration = self.__class__(
+                                claimant_mat=smaller_mat
+                            )
+                            probs_from_next_iteration = (
+                                next_lottery_iteration.compute_on_orbits()
+                            )
+                            next_lottery_iteration = None
+                            orbit_prob = {}
+                            for bigger_orbit, prob in zip(
+                                bigger_orbits, probs_from_next_iteration
+                            ):
+                                if bigger_orbit not in orbit_prob:
+                                    orbit_prob[bigger_orbit] = prob
+                                else:
+                                    orbit_prob[bigger_orbit] += prob
+                            for bigger_orbit in orbit_prob:
+                                for group in self.orbits["groups"]["members"][
+                                    bigger_orbit
+                                ]:
+                                    probabilities[group] = probabilities[
+                                        group
+                                    ] + probabilities[orbit] * orbit_prob[
+                                        bigger_orbit
+                                    ] * len(
+                                        self.orbits["groups"]["members"][orbit]
+                                    ) / len(
+                                        self.orbits["groups"]["members"][bigger_orbit]
+                                    )
+                            for group in self.orbits["groups"]["members"][orbit]:
+                                probabilities[group] = 0
+                        active_orbit_reps.remove(orbit)
+            self.group_probabilities = probabilities
+            return probabilities
+
 
 class EXCSLottery(GroupBasedLottery):
     """
@@ -271,7 +408,9 @@ class EXCSLottery(GroupBasedLottery):
         A = self.binary_membership_matrix
         AT = A.transpose()
         divisor = np.column_stack([A.sum(axis=1) for i in range(A.shape[1])])
-        condition = (np.matmul(A / divisor, AT) > 0) & (np.matmul(A / divisor, AT) < 1)
+        condition = (~np.isclose(np.matmul(A / divisor, AT), 0)) & (
+            ~np.isclose(np.matmul(A / divisor, AT), 1)
+        )
         exclusivity = np.where(condition, 1, 0)
         self.distributionally_relevant_in_group = np.multiply(
             np.matmul(exclusivity, A), A
@@ -368,20 +507,8 @@ class EQCSLottery(GroupBasedLottery):
 #                                 probabilities[group] = 0
 #                             active_groups.remove(group)
 #                 return probabilities
-
-
-if __name__ == "__main__":
-    my_dict = {}
-    # my_array = np.array(
-    #     [
-    #         [1, 0, 1, 1, 1],
-    #         [1, 0, 0, 0, 0],
-    #         [0, 1, 1, 1, 1],
-    #         [0, 1, 0, 0, 1],
-    #         [0, 0, 0, 1, 0],
-    #     ]
-    # )
-    n_claimants = 6
+def run_lottery():
+    n_claimants = 52
     ones = [1 for i in range(int(n_claimants / 2))]
     zeroes = [0 for i in range(int(n_claimants / 2))]
     my_array = np.transpose(np.array([ones + zeroes, zeroes + ones]))
@@ -391,25 +518,28 @@ if __name__ == "__main__":
             newcol[i] = 1
             newcol[j] = 1
             my_array = np.hstack([my_array, newcol])
+
     lottery = EXCSLottery(claimant_mat=my_array)
-    print(my_array.shape)
+    print(lottery.superorbits2)
+    print(lottery.superorbits)
+    print(lottery.suborbits2)
+    print(lottery.suborbits)
 
-    def to_cycles(perm):
-        pi = {i: p for i, p in enumerate(perm)}
-        cycles = []
-        while pi:
-            next_item = pi[next(iter(pi))]
-            cycle = []  # arbitrary starting element
-            while next_item in pi:
-                cycle.append(next_item)
-                next_item = pi[next_item]
-                del pi[cycle[-1]]
-            cycles.append(cycle)
-        return cycles
+    my_dict = {}
+    # lottery.compute(prob_dict=my_dict)
 
-    print(f"{lottery.claimant_generators=}")
-    print(f"{lottery.group_generators=}")
-    print(lottery.claimant_orbits)
-    print(lottery.group_orbits)
-    # probs = lottery.compute(my_dict)
-    # print(probs)
+
+def main():
+    import cProfile
+    import pstats
+
+    with cProfile.Profile() as pr:
+        run_lottery()
+
+    stats = pstats.Stats(pr)
+    stats.sort_stats(pstats.SortKey.TIME)
+    stats.print_stats()
+
+
+if __name__ == "__main__":
+    main()
