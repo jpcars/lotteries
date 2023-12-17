@@ -1,5 +1,6 @@
 import random
 
+import numpy as np
 from scipy.special import comb
 from itertools import combinations
 
@@ -49,5 +50,47 @@ def small_large_example(claimants, small_group_size, large_group_size):
     return result
 
 
+def array_has_no_identical_columns(arr: np.array):
+    return not any([np.array_equal(arr[:, pair[0]], arr[:, pair[1]]) for pair in combinations(range(arr.shape[1]), 2)])
+
+
+class RandomDilemma:
+    def __init__(self, number_claimants, number_groups):
+        self.number_claimants = number_claimants
+        self.number_groups = number_groups
+        self.claimant_mat = np.random.randint(2, size=(self.number_claimants, self.number_groups))
+        self.check_valid_dilemma(self.claimant_mat)
+
+    def add_random_claimant(self, n_groups=None):
+        if n_groups:
+            ones_array = np.ones(n_groups)
+            zeros_array = np.zeros(self.number_groups - n_groups)
+            new_row = np.concatenate([ones_array, zeros_array])
+            np.random.shuffle(new_row)
+        else:
+            new_row = np.random.randint(2, size=self.number_groups)
+        new_claimant_mat = np.vstack((self.claimant_mat, new_row))
+        self.check_valid_dilemma(new_claimant_mat)
+        return new_claimant_mat
+
+    @staticmethod
+    def check_valid_dilemma(claimant_mat):
+        number_claimants, number_groups = claimant_mat.shape
+        try:
+            assert np.all(~np.isclose(claimant_mat.sum(axis=1),
+                                      number_groups)), 'There is at least one claimant that is present in every group.'
+            assert np.all(
+                ~np.isclose(claimant_mat.sum(axis=1), 0)), 'There is at least one claimant that is not present in any group.'
+            assert np.all(~np.isclose(claimant_mat.sum(axis=0),
+                                      number_claimants)), 'There is at least one group that contains every claimant.'
+            assert np.all(~np.isclose(claimant_mat.sum(axis=0), 0)), 'There is at least one empty group.'
+            assert array_has_no_identical_columns(claimant_mat), 'There are at least two identical groups.'
+        except AssertionError:
+            print(claimant_mat)
+            raise
+
+
 if __name__ == "__main__":
-    print(small_large_example(claimants=9, small_group_size=2, large_group_size=3))
+    dilemma = RandomDilemma(number_claimants=10, number_groups=5)
+    print(dilemma.claimant_mat)
+    print(dilemma.add_random_claimant())
