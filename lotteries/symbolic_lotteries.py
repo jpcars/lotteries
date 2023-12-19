@@ -33,9 +33,9 @@ class Lottery:
         self.number_claimants = self.claimant_mat.shape[0]
         self.number_groups = self.claimant_mat.shape[1]
         self.remove_subgroups = remove_subgroups
-        self.binary_membership_matrix = None
+        self.reduced_claimant_matrix = None
         self.unique_values = None
-        self.symbolic_matrix = None
+        # self.symbolic_matrix = None
         self.single_value_matrices = None
         self.canon_claimant_label = None
         self.canon_group_label = None
@@ -52,7 +52,7 @@ class Lottery:
         self.construct_nauty_graph()
         self.compute_autgrp()
         self.compute_supersets()
-        self.compute_supersets_2()
+        self.create_reduced_claimant_matrix()
         self.compute_canon_labels()
 
         self.base_claim = 1 / self.claimant_mat.shape[0]
@@ -76,22 +76,21 @@ class Lottery:
     #     return group_probabilities_series
 
     def compute_useful_matrices(self):
-        self.binary_membership_matrix = (~np.isclose(self.claimant_mat, 0)) * 1
         self.unique_values, inverse_indices = np.unique(
             self.claimant_mat, return_inverse=True
         )
         inverse_indices.shape = self.claimant_mat.shape
         single_value_matrices = []
-        symbolic_matrix = zeros(self.number_claimants, self.number_groups)
-        for i in range(
-            1, len(self.unique_values)
-        ):  # start at 1 bc 0 also counts as unique value, but we don't want it
-            single_value_matrices.append((inverse_indices == i) * 1)
-            symbolic_matrix = symbolic_matrix + Matrix(
-                (inverse_indices == i) * 1
-            ) * Symbol(f"a{i}")
+        # symbolic_matrix = zeros(self.number_claimants, self.number_groups)
+        # for i in range(
+        #     1, len(self.unique_values)
+        # ):  # start at 1 bc 0 also counts as unique value, but we don't want it
+        #     single_value_matrices.append((inverse_indices == i) * 1)
+        #     symbolic_matrix = symbolic_matrix + Matrix(
+        #         (inverse_indices == i) * 1
+        #     ) * Symbol(f"a{i}")
         self.single_value_matrices = single_value_matrices
-        self.symbolic_matrix = symbolic_matrix
+        # self.symbolic_matrix = symbolic_matrix
 
     def construct_nauty_graph(self):
         nauty_incidence_dict = {}
@@ -246,6 +245,20 @@ class Lottery:
                 else:
                     self.superorbits[orbit_rep] = set()
 
+    def create_reduced_claimant_matrix(self):
+        """
+        Computes reduced claimant matrix. For each group that is a subgroup of a different group, it replaces
+        its entries with zeros, i.e. it pretends that all subgroups are empty.
+        """
+        self.reduced_claimant_matrix = self.claimant_mat.copy()
+        if self.remove_subgroups:
+            is_subgroup = []
+            for group, supersets in self.supersets.items():
+                if supersets:
+                    is_subgroup.append(group)
+            if is_subgroup:
+                self.reduced_claimant_matrix[:, np.array(is_subgroup)] = 0
+
 
 class GroupBasedLottery(Lottery):
     """
@@ -371,7 +384,7 @@ class EXCSLottery(GroupBasedLottery):
         computes matrix for distributional relevance. if entry (i,j) is 1, then claimant i
         should take claimant j into account in distributing their claim
         """
-        A = self.binary_membership_matrix
+        A = self.reduced_claimant_matrix
         AT = A.transpose()
         divisor = np.column_stack([A.sum(axis=1) for i in range(A.shape[1])])
         condition = (~np.isclose(np.matmul(A / divisor, AT), 0)) & (
@@ -386,7 +399,7 @@ class EXCSLottery(GroupBasedLottery):
         """
         Compute the non-iterated distributions of claims from the claimants to the groups
         """
-        n_groups = self.binary_membership_matrix.sum(axis=1)
+        n_groups = self.reduced_claimant_matrix.sum(axis=1)
         total_distributionally_relevant = self.distributionally_relevant_in_group.sum(
             axis=1
         )
@@ -394,7 +407,7 @@ class EXCSLottery(GroupBasedLottery):
             np.row_stack(
                 [
                     (
-                        self.binary_membership_matrix[claimant, :]
+                        self.reduced_claimant_matrix[claimant, :]
                         if total_exclusives == 0
                         else self.distributionally_relevant_in_group[claimant, :]
                         / total_exclusives
@@ -422,9 +435,9 @@ class EQCSLottery(GroupBasedLottery):
         """
         Compute the non-iterated distributions of claims from the claimants to the groups
         """
-        row_sums = self.binary_membership_matrix.sum(axis=1)
+        row_sums = self.reduced_claimant_matrix.sum(axis=1)
         self.claims_mat = (
-            self.binary_membership_matrix / row_sums[:, np.newaxis] * self.base_claim
+                self.reduced_claimant_matrix / row_sums[:, np.newaxis] * self.base_claim
         )
 
 
@@ -473,6 +486,8 @@ class EQCSLottery(GroupBasedLottery):
 #                                 probabilities[group] = 0
 #                             active_groups.remove(group)
 #                 return probabilities
+
+
 def run_lottery():
     n_claimants = 52
     ones = [1 for i in range(int(n_claimants / 2))]
@@ -486,26 +501,34 @@ def run_lottery():
             my_array = np.hstack([my_array, newcol])
 
     lottery = EXCSLottery(claimant_mat=my_array)
-    print(lottery.superorbits2)
     print(lottery.superorbits)
-    print(lottery.suborbits2)
     print(lottery.suborbits)
 
     my_dict = {}
     # lottery.compute(prob_dict=my_dict)
 
 
-def main():
-    import cProfile
-    import pstats
-
-    with cProfile.Profile() as pr:
-        run_lottery()
-
-    stats = pstats.Stats(pr)
-    stats.sort_stats(pstats.SortKey.TIME)
-    stats.print_stats()
+# def main():
+#     import cProfile
+#     import pstats
+#
+#     with cProfile.Profile() as pr:
+#         run_lottery()
+#
+#     stats = pstats.Stats(pr)
+#     stats.sort_stats(pstats.SortKey.TIME)
+#     stats.print_stats()
 
 
 if __name__ == "__main__":
-    main()
+    import lotteries.lottery as other_lottery
+    groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
+    result_dict = {}
+    lottery = other_lottery.EXCSLottery(groupie, pruned=True)
+    lottery.compute()
+    for group in lottery.groups["inactive"].values():
+        print(f"{group.name=}, {group.claim}\n")
+    claimant_mat = np.array([[1,0,1,1,1],[1,0,0,0,0],[0,1,1,1,1],[0,1,0,0,1],[0,0,0,1,0]])
+    lottery = EXCSLottery(claimant_mat=claimant_mat, remove_subgroups=True)
+    prob_dict = {}
+    print(lottery.compute(prob_dict=prob_dict))
