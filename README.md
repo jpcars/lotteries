@@ -5,5 +5,4 @@ To do:
  - Implement TI
  - Write documentation
  - Adjust probability reporting
- - Write store/retrieve functionality
  - Implement actual symbolic lottery
