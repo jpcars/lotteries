@@ -35,7 +35,6 @@ class Lottery:
         self.number_claimants = self.claimant_mat.shape[0]
         self.number_groups = self.claimant_mat.shape[1]
         self.remove_subgroups = remove_subgroups
-        self.reduced_claimant_matrix = None
         self.unique_values = None
         # self.symbolic_matrix = None
         self.single_value_matrices = None
@@ -54,10 +53,11 @@ class Lottery:
         self.construct_nauty_graph()
         self.compute_autgrp()
         self.compute_supersets()
-        self.create_reduced_claimant_matrix()
+        self.reduced_claimant_matrix = self.create_reduced_claimant_matrix()
         self.compute_canon_labels()
 
         self.base_claim = 1 / self.claimant_mat.shape[0]
+        self.number_groups = (self.reduced_claimant_matrix.sum(axis=0) > 0).sum()
 
     # def probabilities(self) -> (pd.Series, pd.Series):
     #     """
@@ -203,18 +203,22 @@ class Lottery:
                 for key, value in enumerate(greater_equal_array.T)
             }
             self.suborbits = {}
-            for orbit_rep in self.orbits['groups']['members']:
+            for orbit_rep in self.orbits["groups"]["members"]:
                 if self.subsets[orbit_rep]:
                     subsets_of_orbit_rep = np.array(list(self.subsets[orbit_rep]))
-                    orbits_of_subsets_of_orbit_rep = self.orbits['groups']['orbit_id'][subsets_of_orbit_rep]
+                    orbits_of_subsets_of_orbit_rep = self.orbits["groups"]["orbit_id"][
+                        subsets_of_orbit_rep
+                    ]
                     self.suborbits[orbit_rep] = set(orbits_of_subsets_of_orbit_rep)
                 else:
                     self.suborbits[orbit_rep] = set()
             self.superorbits = {}
-            for orbit_rep in self.orbits['groups']['members']:
+            for orbit_rep in self.orbits["groups"]["members"]:
                 if self.supersets[orbit_rep]:
                     supersets_of_orbit_rep = np.array(list(self.supersets[orbit_rep]))
-                    orbits_of_supersets_of_orbit_rep = self.orbits['groups']['orbit_id'][supersets_of_orbit_rep]
+                    orbits_of_supersets_of_orbit_rep = self.orbits["groups"][
+                        "orbit_id"
+                    ][supersets_of_orbit_rep]
                     self.superorbits[orbit_rep] = set(orbits_of_supersets_of_orbit_rep)
                 else:
                     self.superorbits[orbit_rep] = set()
@@ -224,14 +228,15 @@ class Lottery:
         Computes reduced claimant matrix. For each group that is a subgroup of a different group, it replaces
         its entries with zeros, i.e. it pretends that all subgroups are empty.
         """
-        self.reduced_claimant_matrix = self.claimant_mat.copy()
+        reduced_claimant_matrix = self.claimant_mat.copy()
         if self.remove_subgroups:
             is_subgroup = []
             for group, supersets in self.supersets.items():
                 if supersets:
                     is_subgroup.append(group)
             if is_subgroup:
-                self.reduced_claimant_matrix[:, np.array(is_subgroup)] = 0
+                reduced_claimant_matrix[:, np.array(is_subgroup)] = 0
+        return reduced_claimant_matrix
 
 
 class GroupBasedLottery(Lottery):
@@ -269,8 +274,8 @@ class GroupBasedLottery(Lottery):
                             next_lottery_iteration = self.__class__(
                                 claimant_mat=smaller_mat
                             )
-                            probs_from_next_iteration = (
-                                next_lottery_iteration.compute(prob_dict=prob_dict)
+                            probs_from_next_iteration = next_lottery_iteration.compute(
+                                prob_dict=prob_dict
                             )
                             next_lottery_iteration = None
                             probabilities[bigger_groups] = (
@@ -307,7 +312,9 @@ class GroupBasedLottery(Lottery):
                                 claimant_mat=smaller_mat
                             )
                             probs_from_next_iteration = (
-                                next_lottery_iteration.compute_on_orbits(prob_dict=prob_dict)
+                                next_lottery_iteration.compute_on_orbits(
+                                    prob_dict=prob_dict
+                                )
                             )
                             next_lottery_iteration = None
                             orbit_prob = {}
@@ -407,7 +414,34 @@ class EQCSLottery(GroupBasedLottery):
         """
         row_sums = self.reduced_claimant_matrix.sum(axis=1)
         self.claims_mat = (
-                self.reduced_claimant_matrix / row_sums[:, np.newaxis] * self.base_claim
+            self.reduced_claimant_matrix / row_sums[:, np.newaxis] * self.base_claim
+        )
+
+
+class TaurekLottery(GroupBasedLottery):
+    """
+    Implements Taurek's coin toss.
+    """
+
+    def __init__(self, claimant_mat, remove_subgroups=False):
+        super().__init__(claimant_mat, remove_subgroups)
+        self.lottery_name = "TAUREK"
+        self.claims()
+
+    def claims(self):
+        """
+        Compute the non-iterated distributions of claims from the claimants to the groups
+        There are many matrices that result in an equal chances coin toss for the outcome groups
+        We choose the one that equally divides the group claim of 1/number_groups among all claimants, which are part
+        of the group.
+        """
+        col_sums = self.reduced_claimant_matrix.sum(axis=0)
+        divisor = np.transpose(col_sums[:, np.newaxis]) * self.number_groups
+        divisor = np.where(divisor == 0, np.nan, divisor)
+        self.claims_mat = np.where(
+            np.transpose(col_sums[:, np.newaxis]) != 0,
+            self.reduced_claimant_matrix / divisor,
+            0,
         )
 
 
@@ -471,16 +505,20 @@ def run_lottery():
             my_array = np.hstack([my_array, newcol])
 
     # my_array = np.array([[1,0,1,1,1],[1,0,0,0,0],[0,1,1,1,1],[0,1,0,0,1],[0,0,0,1,0]])
-    lottery1 = EXCSLottery(claimant_mat=my_array)
-    lottery2 = EXCSLottery(claimant_mat=my_array)
-    prob_dict1 = {}
-    prob_dict2 = {}
-    probs1 = lottery1.compute(prob_dict=prob_dict1)
-    probs2 = lottery2.compute_on_orbits(prob_dict=prob_dict2)
-    print(probs1)
-    print(probs2)
-    print(prob_dict1)
-    print(prob_dict2)
+    lottery1 = TaurekLottery(claimant_mat=my_array, remove_subgroups=False)
+    print(lottery1.compute())
+    # with np.printoptions(linewidth=np.inf):
+    #     print(lottery1.claims_mat)
+    #     print(lottery1.claims_mat.sum(axis=0).sum())
+    # lottery2 = EXCSLottery(claimant_mat=my_array)
+    # prob_dict1 = {}
+    # prob_dict2 = {}
+    # probs1 = lottery1.compute(prob_dict=prob_dict1)
+    # probs2 = lottery2.compute_on_orbits(prob_dict=prob_dict2)
+    # print(probs1)
+    # print(probs2)
+    # print(prob_dict1)
+    # print(prob_dict2)
 
     my_dict = {}
     # lottery.compute(prob_dict=my_dict)
