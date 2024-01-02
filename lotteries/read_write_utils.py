@@ -4,7 +4,7 @@ import numpy as np
 import functools
 
 
-def read_write_decorator(method):
+def read_write(method):
     """
     Wraps method in order to read or write its return values to/from a kwarg called prob_dict. If prob_dict is not
     passed, this decorator has no effect.

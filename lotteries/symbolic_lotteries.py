@@ -8,7 +8,7 @@ import pynauty as pn
 from sympy.core.symbol import Symbol
 from sympy import Matrix, zeros
 
-from lotteries.read_write_utils import read_write_decorator
+from lotteries.read_write_utils import read_write
 
 
 class Lottery:
@@ -248,7 +248,7 @@ class GroupBasedLottery(Lottery):
     def __init__(self, claimant_mat, remove_subgroups=False):
         super().__init__(claimant_mat, remove_subgroups)
 
-    @read_write_decorator
+    @read_write
     def compute(self, prob_dict=None) -> np.array:
         probabilities = self.claims_mat.sum(axis=0)
         if (self.number_groups == 1) | (self.number_claimants == 1):
@@ -286,7 +286,7 @@ class GroupBasedLottery(Lottery):
                         active_groups.remove(group)
         return probabilities
 
-    @read_write_decorator
+    @read_write
     def compute_on_orbits(self, prob_dict=None) -> np.array:
         probabilities = self.claims_mat.sum(axis=0)
         if len(np.unique(self.orbits["groups"]["orbit_id"])) == 1:
@@ -454,42 +454,43 @@ class TaurekLottery(GroupBasedLottery):
 #     def __init__(self, claimant_mat, remove_subgroups=False):
 #         super().__init__(claimant_mat, remove_subgroups)
 #
-#     def compute(self):
-#         if self.retrieve_values():
-#             # TODO: implement
+#     @read_write
+#     def compute(self, prob_dict=None) -> np.array:
+#         probabilities = self.claims_mat.sum(axis=0)
+#         if (self.number_groups == 1) | (self.number_claimants == 1):
 #             pass
 #         else:
 #             active_groups = set(range(self.number_groups))
-#             if (self.number_groups == 1) | (self.number_claimants == 1):
-#                 return self.claims_mat.sum(axis=0)
-#             else:
-#                 probabilities = self.claims_mat.sum(axis=0)
-#                 while len(active_groups) > 0:
-#                     active_groups_copy = active_groups.copy()
-#                     for group in active_groups_copy:
-#                         if (
-#                             len(self.subsets[group].intersection(active_groups)) > 0
-#                         ):  # don't compute groups, which still have active subgroups
-#                             pass
-#                         else:
-#                             # if group has supersets, iterate on the lottery only on the supersets
-#                             # if it doesn't: don't do anything
-#                             bigger_groups = sorted(list(self.supersets[group]))
-#                             if len(bigger_groups) > 0:
-#                                 smaller_mat = self.claims_mat[:, bigger_groups]
-#                                 smaller_mat = smaller_mat[
-#                                     ~np.all(smaller_mat == 0, axis=1)
-#                                 ]
-#                                 probs_from_next_iteration = self.__class__(
-#                                     claimant_mat=smaller_mat
-#                                 ).compute()
-#                                 probabilities[bigger_groups] = (
-#                                     probabilities[bigger_groups]
-#                                     + probabilities[group] * probs_from_next_iteration
-#                                 )
-#                                 probabilities[group] = 0
-#                             active_groups.remove(group)
-#                 return probabilities
+#             while len(active_groups) > 0:
+#                 active_groups_copy = active_groups.copy()
+#                 for group in active_groups_copy:
+#                     if (
+#                         len(self.subsets[group].intersection(active_groups)) > 0
+#                     ):  # don't compute groups, which still have active subgroups
+#                         pass
+#                     else:
+#                         # if group has supersets, iterate on the lottery only on the supersets
+#                         # if it doesn't: don't do anything
+#                         bigger_groups = sorted(list(self.supersets[group]))
+#                         if len(bigger_groups) > 0:
+#                             smaller_mat = self.claims_mat[:, bigger_groups]
+#                             smaller_mat = smaller_mat[
+#                                 ~np.all(smaller_mat == 0, axis=1)
+#                             ]  # don't consider empty groups
+#                             next_lottery_iteration = self.__class__(
+#                                 claimant_mat=smaller_mat
+#                             )
+#                             probs_from_next_iteration = next_lottery_iteration.compute(
+#                                 prob_dict=prob_dict
+#                             )
+#                             next_lottery_iteration = None
+#                             probabilities[bigger_groups] = (
+#                                 probabilities[bigger_groups]
+#                                 + probabilities[group] * probs_from_next_iteration
+#                             )
+#                             probabilities[group] = 0
+#                         active_groups.remove(group)
+#         return probabilities
 
 
 def run_lottery():
