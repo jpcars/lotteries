@@ -60,21 +60,26 @@ if input_method == "Manually":
 
         validated = validate_group_input(groups)
         if display_results and validated:
-            group_series = []
+            group_series = [pd.Series(data=[len(group) for group in groups], name='size')]
             claimant_series = []
             for LotteryCLass in [EXCSLottery, EQCSLottery, TILottery]:
                 for pruned in [False, True]:
                     lottery = LotteryCLass(groups, pruned)
                     lottery.compute()
                     group_series_temp, claimant_series_temp = lottery.probabilities()
-                    group_series_temp.index = (
-                        group_series_temp.index + 1
-                    )  # adding 1 in order to make the enumeration of groups in the app start at 1 instead of 0 # noqa: E501
                     group_series.append(group_series_temp)
                     claimant_series.append(claimant_series_temp)
             group_df = pd.concat(group_series, axis=1)
+            expected_number_lives_saved_EXCS = (group_df['size'] * group_df['EXCS']).sum()
+            expected_number_lives_saved_EQCS = (group_df['size'] * group_df['EQCS']).sum()
+            expected_number_lives_saved_TI = (group_df['size'] * group_df['TI']).sum()
             claimant_df = pd.concat(claimant_series, axis=1)
             st.subheader("Fairness metrics")
+
+            st.subheader("Expected number of lives saved")
+            st.write(expected_number_lives_saved_EXCS)
+            st.write(expected_number_lives_saved_EQCS)
+            st.write(expected_number_lives_saved_TI)
 
             st.subheader("Probability of benefiting a particular group")
             st.write(group_df)
