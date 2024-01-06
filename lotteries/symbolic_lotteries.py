@@ -56,8 +56,8 @@ class Lottery:
         self.reduced_claimant_matrix = self.create_reduced_claimant_matrix()
         self.compute_canon_labels()
 
-        self.base_claim = 1 / self.claimant_mat.shape[0]
-        self.number_groups = (self.reduced_claimant_matrix.sum(axis=0) > 0).sum()
+        self.base_claim = 1 / self.number_claimants
+        # self.number_groups = (self.reduced_claimant_matrix.sum(axis=0) > 0).sum()
 
     # def probabilities(self) -> (pd.Series, pd.Series):
     #     """
@@ -445,52 +445,66 @@ class TaurekLottery(GroupBasedLottery):
         )
 
 
-# class ClaimantBasedLottery(Lottery):
-#     """
-#     Implements the general structure of an iterated claimant based lottery. Specific lotteries are implemented in
-#     subclasses.
-#     """
-#
-#     def __init__(self, claimant_mat, remove_subgroups=False):
-#         super().__init__(claimant_mat, remove_subgroups)
-#
-#     @read_write
-#     def compute(self, prob_dict=None) -> np.array:
-#         probabilities = self.claims_mat.sum(axis=0)
-#         if (self.number_groups == 1) | (self.number_claimants == 1):
-#             pass
-#         else:
-#             active_groups = set(range(self.number_groups))
-#             while len(active_groups) > 0:
-#                 active_groups_copy = active_groups.copy()
-#                 for group in active_groups_copy:
-#                     if (
-#                         len(self.subsets[group].intersection(active_groups)) > 0
-#                     ):  # don't compute groups, which still have active subgroups
-#                         pass
-#                     else:
-#                         # if group has supersets, iterate on the lottery only on the supersets
-#                         # if it doesn't: don't do anything
-#                         bigger_groups = sorted(list(self.supersets[group]))
-#                         if len(bigger_groups) > 0:
-#                             smaller_mat = self.claims_mat[:, bigger_groups]
-#                             smaller_mat = smaller_mat[
-#                                 ~np.all(smaller_mat == 0, axis=1)
-#                             ]  # don't consider empty groups
-#                             next_lottery_iteration = self.__class__(
-#                                 claimant_mat=smaller_mat
-#                             )
-#                             probs_from_next_iteration = next_lottery_iteration.compute(
-#                                 prob_dict=prob_dict
-#                             )
-#                             next_lottery_iteration = None
-#                             probabilities[bigger_groups] = (
-#                                 probabilities[bigger_groups]
-#                                 + probabilities[group] * probs_from_next_iteration
-#                             )
-#                             probabilities[group] = 0
-#                         active_groups.remove(group)
-#         return probabilities
+class ClaimantBasedLottery(Lottery):
+    """
+    Implements the general structure of an iterated claimant based lottery. Specific lotteries are implemented in
+    subclasses.
+    """
+
+    def __init__(self, claimant_mat, remove_subgroups=False):
+        super().__init__(claimant_mat, remove_subgroups)
+
+    def remaining_claimants_and_groups_after_next_pick(self, picked_claimant):
+        remaining_cols = (self.claimant_mat[picked_claimant] != 0).nonzero()[0]
+        remaining_rows = np.any(
+            self.claimant_mat[:, remaining_cols] != 0, axis=1
+        ).nonzero()[0]
+        remaining_rows = np.delete(remaining_rows, remaining_rows == picked_claimant)
+        return remaining_rows, remaining_cols
+
+    @read_write
+    def compute_on_orbits(self, prob_dict=None) -> np.array:
+        probabilities = np.zeros(self.number_groups)
+        for claimant_orbit_rep, all_claimants_in_orbit in self.orbits["claimants"][
+            "members"
+        ].items():
+            (
+                remaining_claimants,
+                remaining_groups,
+            ) = self.remaining_claimants_and_groups_after_next_pick(claimant_orbit_rep)
+            if len(remaining_claimants) > 0:
+                smaller_mat = self.claimant_mat[remaining_claimants][
+                    :, remaining_groups
+                ]
+                next_lottery_iteration = self.__class__(claimant_mat=smaller_mat)
+                probs_from_next_iteration = next_lottery_iteration.compute_on_orbits(
+                    prob_dict=prob_dict
+                )
+                next_lottery_iteration = None
+            else:
+                probs_from_next_iteration = np.ones(len(remaining_groups)) / len(
+                    remaining_groups
+                )
+            orbit_prob = defaultdict(int)
+            # next loop can probably be optimized away
+            for orbit_id, prob in zip(
+                self.orbits["groups"]["orbit_id"][remaining_groups],
+                probs_from_next_iteration,
+            ):
+                orbit_prob[orbit_id] += prob
+            for orbit_id, prob in orbit_prob.items():
+                group_prob = (
+                    prob
+                    / len(self.orbits["groups"]["members"][orbit_id])
+                )
+                for group in self.orbits["groups"]["members"][orbit_id]:
+                    probabilities[group] = (
+                        probabilities[group]
+                        + len(all_claimants_in_orbit)
+                        / self.number_claimants
+                        * group_prob
+                    )
+        return probabilities
 
 
 def run_lottery():
@@ -505,23 +519,32 @@ def run_lottery():
             newcol[j] = 1
             my_array = np.hstack([my_array, newcol])
 
-    # my_array = np.array([[1,0,1,1,1],[1,0,0,0,0],[0,1,1,1,1],[0,1,0,0,1],[0,0,0,1,0]])
-    lottery1 = TaurekLottery(claimant_mat=my_array, remove_subgroups=False)
-    print(lottery1.compute())
+    my_array = np.array(
+        [
+            [1, 0, 1, 1, 1],
+            [1, 0, 0, 0, 0],
+            [0, 1, 1, 1, 1],
+            [0, 1, 0, 0, 1],
+            [0, 0, 0, 1, 0],
+        ]
+    )
+    lottery1 = ClaimantBasedLottery(claimant_mat=my_array, remove_subgroups=False)
+    # print(lottery1.claimant_mat)
+    # print(lottery1.remaining_claimants_and_groups_after_next_pick(1))
     # with np.printoptions(linewidth=np.inf):
     #     print(lottery1.claims_mat)
     #     print(lottery1.claims_mat.sum(axis=0).sum())
     # lottery2 = EXCSLottery(claimant_mat=my_array)
-    # prob_dict1 = {}
+    prob_dict1 = {}
     # prob_dict2 = {}
-    # probs1 = lottery1.compute(prob_dict=prob_dict1)
+    probs1 = lottery1.compute_on_orbits(prob_dict=prob_dict1)
     # probs2 = lottery2.compute_on_orbits(prob_dict=prob_dict2)
-    # print(probs1)
+    print(probs1)
+    print(probs1.sum())
     # print(probs2)
     # print(prob_dict1)
     # print(prob_dict2)
 
-    my_dict = {}
     # lottery.compute(prob_dict=my_dict)
 
 
@@ -538,13 +561,13 @@ def run_lottery():
 
 
 if __name__ == "__main__":
-    # import lotteries.lottery as other_lottery
-    # groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
-    # result_dict = {}
-    # lottery = other_lottery.EXCSLottery(groupie, pruned=True)
-    # lottery.compute()
-    # for group in lottery.groups["inactive"].values():
-    #     print(f"{group.name=}, {group.claim}\n")
+    import lotteries.lottery as other_lottery
+    groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
+    result_dict = {}
+    lottery = other_lottery.TILottery(groupie, pruned=False)
+    lottery.compute()
+    for group in lottery.groups["inactive"].values():
+        print(f"{group.name=}, {group.claim}\n")
     # claimant_mat = np.array([[1,0,1,1,1],[1,0,0,0,0],[0,1,1,1,1],[0,1,0,0,1],[0,0,0,1,0]])
     # lottery = EXCSLottery(claimant_mat=claimant_mat, remove_subgroups=True)
     # prob_dict = {}

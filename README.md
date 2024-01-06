@@ -1,11 +1,10 @@
 # Rescue lotteries
 
 To do:
- - Implement general claimant based lottery
- - Implement TI
  - Write documentation
  - Adjust probability reporting
  - Implement actual symbolic lottery
+ - get rid of self.lottery_name and use str of class instead
 
 ## Run streamlit app locally
 
