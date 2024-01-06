@@ -1,12 +1,8 @@
 import itertools
 from collections import defaultdict
-from typing import Optional
 
 import numpy as np
 import pynauty as pn
-
-from sympy.core.symbol import Symbol
-from sympy import Matrix, zeros
 
 from lotteries.read_write_utils import read_write
 
@@ -177,8 +173,8 @@ class Lottery:
         self.compute_orbits(orbits)
 
     def compute_supersets(self):
-        A = self.claimant_mat
-        if A.shape[1] == 1:
+        mat = self.claimant_mat
+        if mat.shape[1] == 1:
             self.subsets = {0: set()}
             self.supersets = {0: set()}
             self.suborbits = {0: set()}
@@ -188,12 +184,16 @@ class Lottery:
             def greater_equal_all(x, y):
                 return np.greater_equal(x, y).all(axis=0)
 
-            greater_equal_array = np.zeros((A.shape[1], A.shape[1]))
-            permutations = np.array(list(itertools.permutations(range(A.shape[1]), 2)))
+            greater_equal_array = np.zeros((mat.shape[1], mat.shape[1]))
+            permutations = np.array(
+                list(itertools.permutations(range(mat.shape[1]), 2))
+            )
 
             greater_equal_array[
                 permutations[:, 0], permutations[:, 1]
-            ] = greater_equal_all(A[:, permutations[:, 0]], A[:, permutations[:, 1]])
+            ] = greater_equal_all(
+                mat[:, permutations[:, 0]], mat[:, permutations[:, 1]]
+            )
             self.subsets = {
                 key: set(np.argwhere(value == 1).flatten())
                 for key, value in enumerate(greater_equal_array)
@@ -277,7 +277,6 @@ class GroupBasedLottery(Lottery):
                             probs_from_next_iteration = next_lottery_iteration.compute(
                                 prob_dict=prob_dict
                             )
-                            next_lottery_iteration = None
                             probabilities[bigger_groups] = (
                                 probabilities[bigger_groups]
                                 + probabilities[group] * probs_from_next_iteration
@@ -316,7 +315,6 @@ class GroupBasedLottery(Lottery):
                                     prob_dict=prob_dict
                                 )
                             )
-                            next_lottery_iteration = None
                             orbit_prob = {}
                             for bigger_orbit, prob in zip(
                                 bigger_orbits, probs_from_next_iteration
@@ -361,15 +359,15 @@ class EXCSLottery(GroupBasedLottery):
         computes matrix for distributional relevance. if entry (i,j) is 1, then claimant i
         should take claimant j into account in distributing their claim
         """
-        A = self.reduced_claimant_matrix
-        AT = A.transpose()
-        divisor = np.column_stack([A.sum(axis=1) for i in range(A.shape[1])])
-        condition = (~np.isclose(np.matmul(A / divisor, AT), 0)) & (
-            ~np.isclose(np.matmul(A / divisor, AT), 1)
+        mat = self.reduced_claimant_matrix
+        mat_transp = mat.transpose()
+        divisor = np.column_stack([mat.sum(axis=1) for i in range(mat.shape[1])])
+        condition = (~np.isclose(np.matmul(mat / divisor, mat_transp), 0)) & (
+            ~np.isclose(np.matmul(mat / divisor, mat_transp), 1)
         )
         exclusivity = np.where(condition, 1, 0)
         self.distributionally_relevant_in_group = np.multiply(
-            np.matmul(exclusivity, A), A
+            np.matmul(exclusivity, mat), mat
         )
 
     def claims(self):
@@ -480,7 +478,6 @@ class ClaimantBasedLottery(Lottery):
                 probs_from_next_iteration = next_lottery_iteration.compute_on_orbits(
                     prob_dict=prob_dict
                 )
-                next_lottery_iteration = None
             else:
                 probs_from_next_iteration = np.ones(len(remaining_groups)) / len(
                     remaining_groups
@@ -493,10 +490,7 @@ class ClaimantBasedLottery(Lottery):
             ):
                 orbit_prob[orbit_id] += prob
             for orbit_id, prob in orbit_prob.items():
-                group_prob = (
-                    prob
-                    / len(self.orbits["groups"]["members"][orbit_id])
-                )
+                group_prob = prob / len(self.orbits["groups"]["members"][orbit_id])
                 for group in self.orbits["groups"]["members"][orbit_id]:
                     probabilities[group] = (
                         probabilities[group]
@@ -509,8 +503,8 @@ class ClaimantBasedLottery(Lottery):
 
 def run_lottery():
     n_claimants = 6
-    ones = [1 for i in range(int(n_claimants / 2))]
-    zeroes = [0 for i in range(int(n_claimants / 2))]
+    ones = [1 for _ in range(int(n_claimants / 2))]
+    zeroes = [0 for _ in range(int(n_claimants / 2))]
     my_array = np.transpose(np.array([ones + zeroes, zeroes + ones]))
     for i in range(n_claimants):
         for j in range(i + 1, n_claimants):
@@ -562,14 +556,15 @@ def run_lottery():
 
 if __name__ == "__main__":
     import lotteries.lottery as other_lottery
-    groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
-    result_dict = {}
-    lottery = other_lottery.TILottery(groupie, pruned=False)
-    lottery.compute()
-    for group in lottery.groups["inactive"].values():
-        print(f"{group.name=}, {group.claim}\n")
-    # claimant_mat = np.array([[1,0,1,1,1],[1,0,0,0,0],[0,1,1,1,1],[0,1,0,0,1],[0,0,0,1,0]])
-    # lottery = EXCSLottery(claimant_mat=claimant_mat, remove_subgroups=True)
-    # prob_dict = {}
-    # print(lottery.compute(prob_dict=prob_dict))
-    run_lottery()
+
+    # groupie = [[1, 2], [3, 4], [1, 3], [1, 3, 5], [1, 3, 4]]
+    # result_dict = {}
+    # lottery = other_lottery.TILottery(groupie, pruned=False)
+    # lottery.compute()
+    # for group in lottery.groups["inactive"].values():
+    #     print(f"{group.name=}, {group.claim}\n")
+    # # claimant_mat = np.array([[1,0,1,1,1],[1,0,0,0,0],[0,1,1,1,1],[0,1,0,0,1],[0,0,0,1,0]])
+    # # lottery = EXCSLottery(claimant_mat=claimant_mat, remove_subgroups=True)
+    # # prob_dict = {}
+    # # print(lottery.compute(prob_dict=prob_dict))
+    # run_lottery()
