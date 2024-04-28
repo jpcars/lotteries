@@ -4,10 +4,13 @@ from lotteries.examples import vong_1, vong_2
 
 st.set_page_config(page_title="Examples")
 
-example = input_method = st.selectbox(
+st.title("Examples")
+
+example = st.sidebar.selectbox(
     label="Select an example",
     options=["Choose an option", "Vong 1", "Vong 2"],
 )
+
 if example == "Vong 1":
     st.write(
         """
@@ -74,3 +77,6 @@ elif example == "Vong 2":
                 probabilities[lottery] = vong_2(number_claimants, lottery=lottery)
             st.subheader("Probability of selecting group 3")
             st.write(probabilities)
+
+else:
+    st.write("Please choose an option in the sidebar.")
