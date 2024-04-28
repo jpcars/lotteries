@@ -55,10 +55,10 @@ class Lottery:
         self.base_claim = 1 / self.number_claimants
         # self.number_groups = (self.reduced_claimant_matrix.sum(axis=0) > 0).sum()
 
-    # def probabilities(self) -> (pd.Series, pd.Series):
+    # def claimant_probabilities(self, group_probabilities: np.array) -> np.array:
     #     """
     #     TODO: adjust
-    #     Computes the probabilities that any particular group will win the lottery
+    #     Given the computed group probabilities that any particular group will win the lottery
     #     :return: series of group probabilities
     #     """
     #     group_probabilities = {}
@@ -433,6 +433,12 @@ class TaurekLottery(GroupBasedLottery):
         We choose the one that equally divides the group claim of 1/number_groups among all claimants, which are part
         of the group.
         """
+        # TODO: this function has a bug. consider example
+        # 1	0	1	0
+        # 0	1	0	0
+        # 0	0	1	0
+        # 0	1	0	0
+        # 0	0	0	1
         col_sums = self.reduced_claimant_matrix.sum(axis=0)
         divisor = np.transpose(col_sums[:, np.newaxis]) * self.number_groups
         divisor = np.where(divisor == 0, np.nan, divisor)
@@ -443,14 +449,14 @@ class TaurekLottery(GroupBasedLottery):
         )
 
 
-class ClaimantBasedLottery(Lottery):
+class TILottery(Lottery):
     """
-    Implements the general structure of an iterated claimant based lottery. Specific lotteries are implemented in
-    subclasses.
+    Implements Timmermann's individualist lottery.
     """
 
     def __init__(self, claimant_mat, remove_subgroups=False):
         super().__init__(claimant_mat, remove_subgroups)
+        self.lottery_name = "TI"
 
     def remaining_claimants_and_groups_after_next_pick(self, picked_claimant):
         remaining_cols = (self.claimant_mat[picked_claimant] != 0).nonzero()[0]
