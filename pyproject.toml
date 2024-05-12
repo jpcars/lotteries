@@ -14,6 +14,7 @@ streamlit = "^1.19.0"
 streamlit-tags = "1.2.8"
 pynauty = { url = "https://files.pythonhosted.org/packages/d0/b5/45698dcf656eec5e3d403864502f074dd62a95a3ced41056ea7158616efa/pynauty-2.8.6.tar.gz" }
 hypernetx = "^2.0.0.post1"
+psycopg2-binary = "^2.9.9"
 
 
 [tool.poetry.group.dev.dependencies]
