@@ -49,7 +49,10 @@ class Lottery:
         self.construct_nauty_graph()
         self.compute_autgrp()
         self.compute_supersets()
-        self.reduced_claimant_matrix = self.create_reduced_claimant_matrix()
+        (
+            self.reduced_claimant_matrix,
+            self.reduced_number_groups,
+        ) = self.create_reduced_claimant_matrix()
         self.compute_canon_labels()
 
         self.base_claim = 1 / self.number_claimants
@@ -229,14 +232,17 @@ class Lottery:
         its entries with zeros, i.e. it pretends that all subgroups are empty.
         """
         reduced_claimant_matrix = self.claimant_mat.copy()
+        number_groups_to_subtract = 0
         if self.remove_subgroups:
             is_subgroup = []
             for group, supersets in self.supersets.items():
                 if supersets:
                     is_subgroup.append(group)
+            number_groups_to_subtract = len(is_subgroup)
             if is_subgroup:
                 reduced_claimant_matrix[:, np.array(is_subgroup)] = 0
-        return reduced_claimant_matrix
+        number_relevant_groups = self.number_groups - number_groups_to_subtract
+        return reduced_claimant_matrix, number_relevant_groups
 
 
 class GroupBasedLottery(Lottery):
@@ -433,14 +439,8 @@ class TaurekLottery(GroupBasedLottery):
         We choose the one that equally divides the group claim of 1/number_groups among all claimants, which are part
         of the group.
         """
-        # TODO: this function has a bug. consider example
-        # 1	0	1	0
-        # 0	1	0	0
-        # 0	0	1	0
-        # 0	1	0	0
-        # 0	0	0	1
         col_sums = self.reduced_claimant_matrix.sum(axis=0)
-        divisor = np.transpose(col_sums[:, np.newaxis]) * self.number_groups
+        divisor = np.transpose(col_sums[:, np.newaxis]) * self.reduced_number_groups
         divisor = np.where(divisor == 0, np.nan, divisor)
         self.claims_mat = np.where(
             np.transpose(col_sums[:, np.newaxis]) != 0,

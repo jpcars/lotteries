@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from lotteries.probability_utils import claimant_probabilities
-from lotteries.symbolic_lotteries import EXCSLottery, EQCSLottery, TILottery
+from lotteries.symbolic_lotteries import (
+    EXCSLottery,
+    EQCSLottery,
+    TILottery,
+    TaurekLottery,
+)
 
 st.set_page_config(page_title="Compute")
 
@@ -37,7 +42,7 @@ if st.button("Compute"):
     claimant_mat = edited_df.to_numpy()
     group_stats = [pd.Series(data=claimant_mat.sum(axis=0), name="size")]
     claimant_stats = []
-    for LotteryCLass in [EXCSLottery, EQCSLottery, TILottery]:
+    for LotteryCLass in [EXCSLottery, EQCSLottery, TILottery, TaurekLottery]:
         for remove_subgroups in [False, True]:
             name_suffix = "_pruned" if remove_subgroups else ""
             lottery = LotteryCLass(claimant_mat, remove_subgroups=remove_subgroups)
