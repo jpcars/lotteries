@@ -5,3 +5,4 @@
 __pycache__/
 notebooks/
 plots
+lotteries/database/database.ini
