@@ -4,5 +4,6 @@
 .python-version
 __pycache__/
 notebooks/
+lotteries/database/sql_scripts
 plots
 lotteries/database/database.ini
