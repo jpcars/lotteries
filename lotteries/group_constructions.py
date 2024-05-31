@@ -51,14 +51,20 @@ def small_large_example(claimants, small_group_size, large_group_size):
 
 
 def array_has_no_identical_columns(arr: np.array):
-    return not any([np.array_equal(arr[:, pair[0]], arr[:, pair[1]]) for pair in combinations(range(arr.shape[1]), 2)])
+    return not any(
+        [
+            np.array_equal(arr[:, pair[0]], arr[:, pair[1]])
+            for pair in combinations(range(arr.shape[1]), 2)
+        ]
+    )
 
 
 class RandomDilemma:
     """
     This class creates random rescue dilemmas. It contains checks for making sure they are actually valid.
     """
-    def __init__(self, number_claimants, number_groups, max_tries = 20):
+
+    def __init__(self, number_claimants, number_groups, max_tries=20):
         self.claimant_mat = None
         self.number_claimants = number_claimants
         self.number_groups = number_groups
@@ -74,7 +80,9 @@ class RandomDilemma:
         """
         max_size = 10
         if (self.number_claimants > max_size) or (self.number_groups > max_size):
-            raise ValueError(f'Please only use values <={max_size} for number_claimants and number_groups.')
+            raise ValueError(
+                f"Please only use values <={max_size} for number_claimants and number_groups."
+            )
 
     def claimant_mat_candidate(self):
         """
@@ -85,10 +93,16 @@ class RandomDilemma:
 
         :return: claimant_mat (numpy.array) - a claimant matrix of shape=(self.number_claimants, self.number_groups)
         """
-        all_groups = [list(tup) for tup in product(range(2), repeat=self.number_claimants)][1:-1]  # [1:-1] gets rid of the entries with all zeros and all ones # noqa: E501
+        all_groups = [
+            list(tup) for tup in product(range(2), repeat=self.number_claimants)
+        ][
+            1:-1
+        ]  # [1:-1] gets rid of the entries with all zeros and all ones # noqa: E501
         all_groups = np.array(all_groups)
         rng = np.random.default_rng()
-        claimant_mat = np.transpose(rng.choice(all_groups, size=self.number_groups, replace=False))
+        claimant_mat = np.transpose(
+            rng.choice(all_groups, size=self.number_groups, replace=False)
+        )
         return claimant_mat
 
     @staticmethod
@@ -100,14 +114,21 @@ class RandomDilemma:
         """
         number_claimants, number_groups = claimant_mat.shape
         try:
-            assert np.all(~np.isclose(claimant_mat.sum(axis=1),
-                                      number_groups)), 'There is at least one claimant that is present in every group.'
             assert np.all(
-                ~np.isclose(claimant_mat.sum(axis=1), 0)), 'There is at least one claimant that is not present in any group.'
-            assert np.all(~np.isclose(claimant_mat.sum(axis=0),
-                                      number_claimants)), 'There is at least one group that contains every claimant.'
-            assert np.all(~np.isclose(claimant_mat.sum(axis=0), 0)), 'There is at least one empty group.'
-            assert array_has_no_identical_columns(claimant_mat), 'There are at least two identical groups.'
+                ~np.isclose(claimant_mat.sum(axis=1), number_groups)
+            ), "There is at least one claimant that is present in every group."
+            assert np.all(
+                ~np.isclose(claimant_mat.sum(axis=1), 0)
+            ), "There is at least one claimant that is not present in any group."
+            assert np.all(
+                ~np.isclose(claimant_mat.sum(axis=0), number_claimants)
+            ), "There is at least one group that contains every claimant."
+            assert np.all(
+                ~np.isclose(claimant_mat.sum(axis=0), 0)
+            ), "There is at least one empty group."
+            assert array_has_no_identical_columns(
+                claimant_mat
+            ), "There are at least two identical groups."
             return True
         except AssertionError as e:
             return False
