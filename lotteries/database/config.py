@@ -1,7 +1,11 @@
 from configparser import ConfigParser
+import pathlib
+
+DIRECTORY = pathlib.Path(__file__).parent.resolve()
+DATABASE_FILE = DIRECTORY.joinpath("database.ini")
 
 
-def load_config(filename="database.ini", section="postgresql"):
+def load_config(filename=DATABASE_FILE, section="postgresql"):
     parser = ConfigParser()
     parser.read(filename)
 

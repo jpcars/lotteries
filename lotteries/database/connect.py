@@ -1,18 +1,16 @@
+import numpy as np
 import psycopg2
-from config import load_config
+from lotteries.database.config import load_config
 
 
-def connect(config):
-    """Connect to the PostgreSQL database server"""
+def execute_command(command, values=None, has_return_value: bool = False):
+    """Connect to the PostgreSQL database server and execute command"""
+    config = load_config()
     try:
-        # connecting to the PostgreSQL server
         with psycopg2.connect(**config) as conn:
-            print("Connected to the PostgreSQL server.")
-            return conn
+            with conn.cursor() as cur:
+                cur.execute(command, values)
+                if has_return_value:
+                    return cur.fetchall()
     except (psycopg2.DatabaseError, Exception) as error:
         print(error)
-
-
-if __name__ == "__main__":
-    config = load_config()
-    connect(config)
