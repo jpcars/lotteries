@@ -53,13 +53,13 @@ if st.button("Compute"):
             group_stats.append(
                 pd.Series(
                     group_probabilities_temp,
-                    name=f"{lottery.lottery_name}{name_suffix}",
+                    name=f"{lottery.lottery_code}{name_suffix}",
                 )
             )
             claimant_stats.append(
                 pd.Series(
                     claimant_probabilities_temp,
-                    name=f"{lottery.lottery_name}{name_suffix}",
+                    name=f"{lottery.lottery_code}{name_suffix}",
                 )
             )
     group_df = pd.concat(group_stats, axis=1)
