@@ -18,7 +18,7 @@ class Lottery:
         self,
         claimant_mat: np.array,
         remove_subgroups: bool = False,
-        use_db_access: bool = True,
+        use_db_access: bool = False,
         has_uncertainty: bool = None,
     ):
         """
