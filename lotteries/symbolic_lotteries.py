@@ -503,7 +503,7 @@ class EXCSLottery(GroupBasedLottery):
         """
         if self.has_uncertainty:
             raise NotImplementedError(
-                f"Uncertainty is not yet implemented for {self.__name__}."
+                f"Uncertainty is not yet implemented for {self.lottery_name}."
             )
         else:
             n_groups = self.reduced_claimant_matrix.sum(axis=1)
@@ -557,7 +557,7 @@ class EQCSLottery(GroupBasedLottery):
         """
         if self.has_uncertainty:
             raise NotImplementedError(
-                f"Uncertainty is not yet implemented for {self.__name__}."
+                f"Uncertainty is not yet implemented for {self.lottery_name}."
             )
         else:
             row_sums = self.reduced_claimant_matrix.sum(axis=1)
@@ -594,7 +594,7 @@ class TaurekLottery(GroupBasedLottery):
         """
         if self.has_uncertainty:
             raise NotImplementedError(
-                f"Uncertainty is not yet implemented for {self.__name__}."
+                f"Uncertainty is not yet implemented for {self.lottery_name}."
             )
         else:
             binary_claimant_matrix = np.where(self.reduced_claimant_matrix > 0, 1, 0)
@@ -627,7 +627,7 @@ class TILottery(Lottery):
             self.register_lottery_in_db()
         if self.has_uncertainty:
             raise NotImplementedError(
-                f"Uncertainty is not yet implemented for {self.__name__}."
+                f"Uncertainty is not yet implemented for {self.lottery_name}."
             )
 
     def remaining_claimants_and_groups_after_next_pick(self, picked_claimant):
