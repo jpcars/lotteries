@@ -18,6 +18,7 @@ RUN pip install "poetry==$POETRY_VERSION"
 WORKDIR /usr/local/
 COPY pyproject.toml README.md .
 COPY lotteries ./lotteries
+COPY streamlit ./streamlit
 
 RUN apt-get update && apt-get install -y \
     make \
