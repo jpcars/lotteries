@@ -78,17 +78,7 @@ The provided user needs read and write access for the above-mentioned tables.
 
 ## Setup with Docker
 
-Please run
-
-    docker build -t <image_name> .
-
-from the root of this project to build a docker image that exposes the streamlit app directly. This image can be run by
-
-    docker run -it <image_name>
-
-
-
-> **_NOTE:_**  When using Docker the database functionality is currently not available.
+Coming soon
 
 ## Run streamlit app locally
 
