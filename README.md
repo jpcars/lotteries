@@ -23,7 +23,11 @@ intricate. The aim of this repo is to provide tools to practitioners to ease the
 computations.
 
 
-## Lotteries
+## Currently implemented lotteries
+
+For references on these lotteries please check [[1]](#1), [[2]](#2) and [[3]](#3).
+
+
 
 | Lottery                                 | without uncertainty | with uncertainty	 |
 |-----------------------------------------|----------------|-----------------|
@@ -35,6 +39,56 @@ computations.
 *EXCS and EQCS both do not have straightforward generalizations to cases with uncertainty. Several alternatives
 could be implemented.
 
+
+## Local setup
+
+### Python
+It is encouraged to create a virtual environment and use poetry to handle the dependency management.
+
+We are using pynauty for graph isomorphism computations. This depends on the C library nauty and requires a C
+compiler to be installed.
+
+When all requirements are met please run
+
+    poetry install
+
+inside the virtual environment to install all dependencies (including dev dependencies).
+
+### Postgres
+
+The library contains the functionality to persist results in a postgres database. The library and the streamlit app
+**do not** use this functionality by default.
+
+There are two main use cases:
+1. Since the computation of large rescue dilemmas is recursive database lookups can increase performance
+2. The database will serve as foundation for a framework for the structured analysis of rescue cases.
+
+If you want to use this feature, please make sure that you have a connection to a postgres server. Please create a
+database called `lotteries` and create the tables listed in `lottery/database/sql_scripts/create_tables.sql`.
+
+A file called database.ini in the directory `lottery/database` is expected. The minimum content of this file is
+
+    [postgresql]
+    host=<host>
+    database=lotteries
+    user=<username>
+    password=<password>
+
+The provided user needs read and write access for the above-mentioned tables.
+
+## Setup with Docker
+
+Please run
+
+    docker build -t <image_name> .
+
+from the root of this project to build a docker image that exposes the streamlit app directly. This image can be run by
+
+    docker run -it <image_name>
+
+
+
+> **_NOTE:_**  When using Docker the database functionality is currently not available.
 
 ## Run streamlit app locally
 
@@ -49,3 +103,19 @@ in the command line.
  - Adjust probability reporting
  - Implement actual symbolic lottery
  - Implement entire-claim-of-claimant-to-largest-group-of-claimant lottery
+
+## References
+<a id="1">[1]</a>
+Vong, Gerard (2020):
+Weighing Up Weighted Lotteries: Scarcity, Overlap Cases, and Fair Inequalities of Chance,
+Ethics 130 (3), pp. 320-348.
+
+<a id="2">[2]</a>
+Timmermann, Jens (2004):
+The Individualist Lottery: How People Count, but Not Their Numbers,
+Analysis 64 (2), pp. 106-112.
+
+<a id="3">[3]</a>
+Taurek, John (1977):
+Should the Numbers Count?,
+Philosophy & Public Affairs 6 (4), pp. 293-316.
