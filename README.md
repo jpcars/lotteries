@@ -40,7 +40,7 @@ could be implemented.
 
 To run the streamlit app execute
 
-    streamlit run streamlit_app.py
+    streamlit run streamlit/Rescue_Lotteries.py
 
 in the command line.
 
