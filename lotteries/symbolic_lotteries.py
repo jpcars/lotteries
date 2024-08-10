@@ -3,9 +3,9 @@ from collections import defaultdict
 
 import numpy as np
 import pynauty as pn
+from sympy import Matrix, Symbol, zeros
 
 from lotteries.database.connect import execute_command
-from lotteries.group_constructions import array_has_no_identical_columns
 from lotteries.read_write_utils import read_write
 
 
@@ -14,13 +14,29 @@ class Lottery:
     Base class for the different lotteries
     """
 
-    def __init__(self, claimant_mat: np.array, remove_subgroups=False):
+    def __init__(
+        self,
+        claimant_mat: np.array,
+        remove_subgroups: bool = False,
+        use_db_access: bool = False,
+        has_uncertainty: bool = None,
+    ):
         """
 
         :param claimant_mat: rows are claimants, columns are courses of actions, values are probabilities to be saved
         :param remove_subgroups: if true, all courses of action, which are entirely contained in others (i.e. every
-                    claimant has at least the same probability to be saved) are deleted in the beginning
+            claimant has at least the same probability to be saved) are deleted in the beginning
+        :param use_db_access: if set to true available, values are read from the database whenever possible and new
+            values are written to it
+        :param has_uncertainty: indicates whether the dilemma contains uncertainty. Normally this is determined
+            automatically from the contents of claimant_mat. This parameter is only explicitly used in the recursive
+            computation, because it might happen that a dilemma has uncertainty but not all its subdilemmas do.
+            Setting this parameter makes sure that all subdilemmas are also treated as having uncertainty.
+
+
         """
+        self.has_uncertainty = None
+        self.use_db_access = use_db_access
         self.suborbits = None
         self.superorbits = None
         self.group_orbits = None
@@ -36,7 +52,7 @@ class Lottery:
         self.number_groups = self.claimant_mat.shape[1]
         self.remove_subgroups = remove_subgroups
         self.unique_values = None
-        # self.symbolic_matrix = None
+        self.symbolic_matrix = None
         self.single_value_matrices = None
         self.canon_claimant_label = None
         self.canon_group_label = None
@@ -49,7 +65,7 @@ class Lottery:
         self.supersets = defaultdict(set)
         self.subsets = defaultdict(set)
 
-        self.compute_useful_matrices()
+        self.compute_useful_matrices(force_uncertainty=has_uncertainty)
         self.construct_nauty_graph()
         self.compute_autgrp()
         self.compute_supersets()
@@ -76,7 +92,7 @@ class Lottery:
         else:
             execute_command(
                 command=f"""
-                INSERT INTO lotteries (lottery_code, lottery_name) VALUES (%s,%s) ON CONFLICT DO NOTHING;
+                INSERT INTO dim_lotteries (lottery_code, lottery_name) VALUES (%s,%s) ON CONFLICT DO NOTHING;
                 """,
                 values=[self.lottery_code, self.lottery_name],
             )
@@ -94,22 +110,31 @@ class Lottery:
                 "Dilemmas with identical groups are currently not implemented."
             )
 
-    def compute_useful_matrices(self):
+    def compute_useful_matrices(self, force_uncertainty):
         self.unique_values, inverse_indices = np.unique(
             self.claimant_mat, return_inverse=True
         )
+        if force_uncertainty:
+            self.has_uncertainty = True
+        else:
+            self.has_uncertainty = (
+                (self.unique_values != 0) & (self.unique_values != 1)
+            ).any()
         inverse_indices.shape = self.claimant_mat.shape
         single_value_matrices = []
-        # symbolic_matrix = zeros(self.number_claimants, self.number_groups)
         for i in range(
             1, len(self.unique_values)
         ):  # start at 1 bc 0 also counts as unique value, but we don't want it
             single_value_matrices.append((inverse_indices == i) * 1)
-        #     symbolic_matrix = symbolic_matrix + Matrix(
-        #         (inverse_indices == i) * 1
-        #     ) * Symbol(f"a{i}")
         self.single_value_matrices = single_value_matrices
-        # self.symbolic_matrix = symbolic_matrix
+        if len(self.single_value_matrices) > 1:
+            self.symbolic_matrix = sum(
+                (
+                    Matrix(value) * Symbol(f"a{index}")
+                    for index, value in enumerate(self.single_value_matrices)
+                ),
+                zeros(self.number_claimants, self.number_groups),
+            )
 
     def construct_nauty_graph(self):
         nauty_incidence_dict = {}
@@ -269,8 +294,14 @@ class GroupBasedLottery(Lottery):
     subclasses.
     """
 
-    def __init__(self, claimant_mat, remove_subgroups=False):
-        super().__init__(claimant_mat, remove_subgroups)
+    def __init__(
+        self,
+        claimant_mat,
+        remove_subgroups: bool = False,
+        use_db_access: bool = False,
+        has_uncertainty: bool = None,
+    ):
+        super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
 
     @read_write
     def compute(self, prob_dict=None) -> np.array:
@@ -324,18 +355,83 @@ class GroupBasedLottery(Lottery):
                     ):  # don't compute orbits, which still have active suborbits
                         pass
                     else:
-                        # if orbits has superorbits, iterate on the lottery only on the superorbits
+                        # if orbit has superorbits, iterate the lottery only on the superorbits
                         # if it doesn't: don't do anything
                         bigger_groups = sorted(list(self.supersets[orbit]))
                         bigger_orbits = self.orbits["groups"]["orbit_id"][bigger_groups]
                         if len(bigger_groups) > 0:
+                            # Note, we still use self.claimant_mat here instead of self.reduced_claimant_matrix
+                            # we can do this because the exclusion of subgroups from consideration is handled by the
+                            # claims_mat
                             smaller_mat = self.claimant_mat[:, bigger_groups]
                             smaller_mat = smaller_mat[~np.all(smaller_mat == 0, axis=1)]
                             next_lottery_iteration = self.__class__(
-                                claimant_mat=smaller_mat
+                                claimant_mat=smaller_mat,
+                                remove_subgroups=self.remove_subgroups,
+                                use_db_access=self.use_db_access,
                             )
                             probs_from_next_iteration = (
                                 next_lottery_iteration.compute_on_orbits()
+                            )
+                            orbit_prob = {}
+                            for bigger_orbit, prob in zip(
+                                bigger_orbits, probs_from_next_iteration
+                            ):
+                                if bigger_orbit not in orbit_prob:
+                                    orbit_prob[bigger_orbit] = prob
+                                else:
+                                    orbit_prob[bigger_orbit] += prob
+                            for bigger_orbit in orbit_prob:
+                                for group in self.orbits["groups"]["members"][
+                                    bigger_orbit
+                                ]:
+                                    probabilities[group] = probabilities[
+                                        group
+                                    ] + probabilities[orbit] * orbit_prob[
+                                        bigger_orbit
+                                    ] * len(
+                                        self.orbits["groups"]["members"][orbit]
+                                    ) / len(
+                                        self.orbits["groups"]["members"][bigger_orbit]
+                                    )
+                            for group in self.orbits["groups"]["members"][orbit]:
+                                probabilities[group] = 0
+                        active_orbit_reps.remove(orbit)
+        return probabilities
+
+    @read_write
+    def symbolic_compute_on_orbits(self) -> np.array:
+        probabilities = self.claims_mat.sum(axis=0)
+        if len(np.unique(self.orbits["groups"]["orbit_id"])) == 1:
+            pass
+        else:
+            active_orbit_reps = set(self.orbits["groups"]["members"].keys())
+            while len(active_orbit_reps) > 0:
+                active_orbits_copy = active_orbit_reps.copy()
+                for orbit in active_orbits_copy:
+                    if (
+                        len(self.suborbits[orbit].intersection(active_orbit_reps)) > 0
+                    ):  # don't compute orbits, which still have active suborbits
+                        pass
+                    else:
+                        # if orbit has superorbits, iterate the lottery only on the superorbits
+                        # if it doesn't: don't do anything
+                        bigger_groups = sorted(list(self.supersets[orbit]))
+                        bigger_orbits = self.orbits["groups"]["orbit_id"][bigger_groups]
+                        if len(bigger_groups) > 0:
+                            # Note, we still use self.claimant_mat here instead of self.reduced_claimant_matrix
+                            # we can do this because the exclusion of subgroups from consideration is handled by the
+                            # claims_mat
+                            smaller_mat = self.symbolic_matrix[:, bigger_groups]
+                            smaller_mat = smaller_mat[~np.all(smaller_mat == 0, axis=1)]
+                            next_lottery_iteration = self.__class__(
+                                claimant_mat=smaller_mat,
+                                remove_subgroups=self.remove_subgroups,
+                                use_db_access=self.use_db_access,
+                                has_uncertainty=self.has_uncertainty,
+                            )
+                            probs_from_next_iteration = (
+                                next_lottery_iteration.symbolic_compute_on_orbits()
                             )
                             orbit_prob = {}
                             for bigger_orbit, prob in zip(
@@ -369,11 +465,18 @@ class EXCSLottery(GroupBasedLottery):
     Implements the Exclusive Composition-sensitive lottery
     """
 
-    def __init__(self, claimant_mat, remove_subgroups=False):
-        super().__init__(claimant_mat, remove_subgroups)
+    def __init__(
+        self,
+        claimant_mat,
+        remove_subgroups=False,
+        use_db_access: bool = False,
+        has_uncertainty: bool = None,
+    ):
+        super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
         self.lottery_code = "EXCS"
         self.lottery_name = "Exclusive composition-sensitive lottery"
-        self.register_lottery_in_db()
+        if self.use_db_access:
+            self.register_lottery_in_db()
         self.distributionally_relevant_in_group = None
         self.exclusivity_relations()
         self.claims()
@@ -398,30 +501,35 @@ class EXCSLottery(GroupBasedLottery):
         """
         Compute the non-iterated distributions of claims from the claimants to the groups
         """
-        n_groups = self.reduced_claimant_matrix.sum(axis=1)
-        total_distributionally_relevant = self.distributionally_relevant_in_group.sum(
-            axis=1
-        )
-        self.claims_mat = (
-            np.row_stack(
-                [
-                    (
-                        # If a claimant has no claimants that are distributionally relevant for them,
-                        # they just divide their claim equally among the groups they are part of.
-                        # Usually this means that they are alone in 1 group or that all the groups
-                        # they are part of are identical.
-                        self.reduced_claimant_matrix[claimant, :] / groups
-                        if total_exclusives == 0
-                        else self.distributionally_relevant_in_group[claimant, :]
-                        / total_exclusives
-                    )
-                    for claimant, (groups, total_exclusives) in enumerate(
-                        zip(n_groups, total_distributionally_relevant)
-                    )
-                ]
+        if self.has_uncertainty:
+            raise NotImplementedError(
+                f"Uncertainty is not yet implemented for {self.__name__}."
             )
-            * self.base_claim
-        )
+        else:
+            n_groups = self.reduced_claimant_matrix.sum(axis=1)
+            total_distributionally_relevant = (
+                self.distributionally_relevant_in_group.sum(axis=1)
+            )
+            self.claims_mat = (
+                np.row_stack(
+                    [
+                        (
+                            # If a claimant has no claimants that are distributionally relevant for them,
+                            # they just divide their claim equally among the groups they are part of.
+                            # Usually this means that they are alone in 1 group or that all the groups
+                            # they are part of are identical.
+                            self.reduced_claimant_matrix[claimant, :] / groups
+                            if total_exclusives == 0
+                            else self.distributionally_relevant_in_group[claimant, :]
+                            / total_exclusives
+                        )
+                        for claimant, (groups, total_exclusives) in enumerate(
+                            zip(n_groups, total_distributionally_relevant)
+                        )
+                    ]
+                )
+                * self.base_claim
+            )
 
 
 class EQCSLottery(GroupBasedLottery):
@@ -429,21 +537,33 @@ class EQCSLottery(GroupBasedLottery):
     Implements the Equal Composition-Sensitive lottery
     """
 
-    def __init__(self, claimant_mat, remove_subgroups=False):
-        super().__init__(claimant_mat, remove_subgroups)
+    def __init__(
+        self,
+        claimant_mat,
+        remove_subgroups=False,
+        use_db_access: bool = True,
+        has_uncertainty: bool = None,
+    ):
+        super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
         self.lottery_code = "EQCS"
         self.lottery_name = "Equal composition-sensitive lottery"
-        self.register_lottery_in_db()
+        if self.use_db_access:
+            self.register_lottery_in_db()
         self.claims()
 
     def claims(self):
         """
         Compute the non-iterated distributions of claims from the claimants to the groups
         """
-        row_sums = self.reduced_claimant_matrix.sum(axis=1)
-        self.claims_mat = (
-            self.reduced_claimant_matrix / row_sums[:, np.newaxis] * self.base_claim
-        )
+        if self.has_uncertainty:
+            raise NotImplementedError(
+                f"Uncertainty is not yet implemented for {self.__name__}."
+            )
+        else:
+            row_sums = self.reduced_claimant_matrix.sum(axis=1)
+            self.claims_mat = (
+                self.reduced_claimant_matrix / row_sums[:, np.newaxis] * self.base_claim
+            )
 
 
 class TaurekLottery(GroupBasedLottery):
@@ -451,11 +571,18 @@ class TaurekLottery(GroupBasedLottery):
     Implements Taurek's coin toss.
     """
 
-    def __init__(self, claimant_mat, remove_subgroups=False):
-        super().__init__(claimant_mat, remove_subgroups)
+    def __init__(
+        self,
+        claimant_mat,
+        remove_subgroups=False,
+        use_db_access: bool = False,
+        has_uncertainty: bool = None,
+    ):
+        super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
         self.lottery_code = "TAUR"
         self.lottery_name = "Taurek's coin toss"
-        self.register_lottery_in_db()
+        if self.use_db_access:
+            self.register_lottery_in_db()
         self.claims()
 
     def claims(self):
@@ -465,14 +592,20 @@ class TaurekLottery(GroupBasedLottery):
         We choose the one that equally divides the group claim of 1/number_groups among all claimants, which are part
         of the group.
         """
-        col_sums = self.reduced_claimant_matrix.sum(axis=0)
-        divisor = np.transpose(col_sums[:, np.newaxis]) * self.reduced_number_groups
-        divisor = np.where(divisor == 0, np.nan, divisor)
-        self.claims_mat = np.where(
-            np.transpose(col_sums[:, np.newaxis]) != 0,
-            self.reduced_claimant_matrix / divisor,
-            0,
-        )
+        if self.has_uncertainty:
+            raise NotImplementedError(
+                f"Uncertainty is not yet implemented for {self.__name__}."
+            )
+        else:
+            binary_claimant_matrix = np.where(self.reduced_claimant_matrix > 0, 1, 0)
+            col_sums = binary_claimant_matrix.sum(axis=0)
+            divisor = np.transpose(col_sums[:, np.newaxis]) * self.reduced_number_groups
+            divisor = np.where(divisor == 0, np.nan, divisor)
+            self.claims_mat = np.where(
+                np.transpose(col_sums[:, np.newaxis]) != 0,
+                binary_claimant_matrix / divisor,
+                0,
+            )
 
 
 class TILottery(Lottery):
@@ -480,14 +613,29 @@ class TILottery(Lottery):
     Implements Timmermann's individualist lottery.
     """
 
-    def __init__(self, claimant_mat, remove_subgroups=False):
-        super().__init__(claimant_mat, remove_subgroups)
+    def __init__(
+        self,
+        claimant_mat,
+        remove_subgroups=False,
+        use_db_access: bool = False,
+        has_uncertainty: bool = None,
+    ):
+        super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
         self.lottery_code = "TI"
         self.lottery_name = "Timmermann's individualist lottery"
-        self.register_lottery_in_db()
+        if self.use_db_access:
+            self.register_lottery_in_db()
+        if self.has_uncertainty:
+            raise NotImplementedError(
+                f"Uncertainty is not yet implemented for {self.__name__}."
+            )
 
     def remaining_claimants_and_groups_after_next_pick(self, picked_claimant):
-        remaining_cols = (self.claimant_mat[picked_claimant] != 0).nonzero()[0]
+        groups_containing_picked_claimant = self.claimant_mat[picked_claimant]
+        remaining_cols = np.flatnonzero(
+            groups_containing_picked_claimant
+            == np.max(groups_containing_picked_claimant)
+        )
         remaining_rows = np.any(
             self.claimant_mat[:, remaining_cols] != 0, axis=1
         ).nonzero()[0]
@@ -508,7 +656,11 @@ class TILottery(Lottery):
                 smaller_mat = self.claimant_mat[remaining_claimants][
                     :, remaining_groups
                 ]
-                next_lottery_iteration = self.__class__(claimant_mat=smaller_mat)
+                next_lottery_iteration = self.__class__(
+                    claimant_mat=smaller_mat,
+                    remove_subgroups=self.remove_subgroups,
+                    use_db_access=self.use_db_access,
+                )
                 probs_from_next_iteration = next_lottery_iteration.compute_on_orbits()
             else:
                 probs_from_next_iteration = np.ones(len(remaining_groups)) / len(
@@ -547,18 +699,23 @@ def main():
 
     my_array = np.array(
         [
-            [1, 0, 1, 1],
-            [0, 1, 0, 0],
-            [1, 1, 1, 1],
-            [0, 1, 1, 1],
+            [1, 0, 0.5, 1],
+            [0, 1, 1, 0],
+            [1, 1, 0, 1],
+            [0, 0.4, 0, 1],
             [1, 1, 1, 1],
         ]
     )
     # for Lot in [EXCSLottery, EQCSLottery, TaurekLottery, TILottery]:
     #     lottery = Lot(claimant_mat=my_array, remove_subgroups=False)
     #     lottery.compute_on_orbits()
-    lottery = EXCSLottery(claimant_mat=my_array, remove_subgroups=False)
-    lottery.compute_on_orbits()
+    lottery = TILottery(
+        claimant_mat=my_array, remove_subgroups=False, use_db_access=True
+    )
+    # lottery.compute_on_orbits()
+    x = Matrix([1, 1, 1, 1, 1])
+    print(x.transpose() * lottery.symbolic_matrix)
+    # print(np.array_equal(lottery.unique_values, np.array([0,0.5,1])))
 
 
 if __name__ == "__main__":
