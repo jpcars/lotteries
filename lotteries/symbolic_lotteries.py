@@ -298,7 +298,7 @@ class GroupBasedLottery(Lottery):
         self,
         claimant_mat,
         remove_subgroups: bool = False,
-        use_db_access: bool = True,
+        use_db_access: bool = False,
         has_uncertainty: bool = None,
     ):
         super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
@@ -469,13 +469,14 @@ class EXCSLottery(GroupBasedLottery):
         self,
         claimant_mat,
         remove_subgroups=False,
-        use_db_access: bool = True,
+        use_db_access: bool = False,
         has_uncertainty: bool = None,
     ):
         super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
         self.lottery_code = "EXCS"
         self.lottery_name = "Exclusive composition-sensitive lottery"
-        self.register_lottery_in_db()
+        if self.use_db_access:
+            self.register_lottery_in_db()
         self.distributionally_relevant_in_group = None
         self.exclusivity_relations()
         self.claims()
@@ -546,7 +547,8 @@ class EQCSLottery(GroupBasedLottery):
         super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
         self.lottery_code = "EQCS"
         self.lottery_name = "Equal composition-sensitive lottery"
-        self.register_lottery_in_db()
+        if self.use_db_access:
+            self.register_lottery_in_db()
         self.claims()
 
     def claims(self):
@@ -573,13 +575,14 @@ class TaurekLottery(GroupBasedLottery):
         self,
         claimant_mat,
         remove_subgroups=False,
-        use_db_access: bool = True,
+        use_db_access: bool = False,
         has_uncertainty: bool = None,
     ):
         super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
         self.lottery_code = "TAUR"
         self.lottery_name = "Taurek's coin toss"
-        self.register_lottery_in_db()
+        if self.use_db_access:
+            self.register_lottery_in_db()
         self.claims()
 
     def claims(self):
@@ -614,13 +617,14 @@ class TILottery(Lottery):
         self,
         claimant_mat,
         remove_subgroups=False,
-        use_db_access: bool = True,
+        use_db_access: bool = False,
         has_uncertainty: bool = None,
     ):
         super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
         self.lottery_code = "TI"
         self.lottery_name = "Timmermann's individualist lottery"
-        self.register_lottery_in_db()
+        if self.use_db_access:
+            self.register_lottery_in_db()
         if self.has_uncertainty:
             raise NotImplementedError(
                 f"Uncertainty is not yet implemented for {self.__name__}."
