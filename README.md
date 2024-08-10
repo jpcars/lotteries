@@ -33,8 +33,8 @@ For references on these lotteries please check [[1]](#1), [[2]](#2) and [[3]](#3
 |-----------------------------------------|----------------|-----------------|
 | Exclusive composition sensitive lottery |&check;| &cross;*        |
 | Equal composition sensitive lottery     |&check;| &cross;*        |
-| Timmermann's individualist lottery      |&check;| &check;         |
-| Taurek's coin toss                      |&check;| &check;         |
+| Timmermann's individualist lottery      |&check;| &cross;         |
+| Taurek's coin toss                      |&check;| &cross;         |
 
 *EXCS and EQCS both do not have straightforward generalizations to cases with uncertainty. Several alternatives
 could be implemented.
