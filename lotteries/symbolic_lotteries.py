@@ -503,7 +503,7 @@ class EXCSLottery(GroupBasedLottery):
         """
         if self.has_uncertainty:
             raise NotImplementedError(
-                f"Uncertainty is not yet implemented for {self.__name__}."
+                f"Uncertainty is not yet implemented for {self.lottery_name}."
             )
         else:
             n_groups = self.reduced_claimant_matrix.sum(axis=1)
@@ -557,7 +557,7 @@ class EQCSLottery(GroupBasedLottery):
         """
         if self.has_uncertainty:
             raise NotImplementedError(
-                f"Uncertainty is not yet implemented for {self.__name__}."
+                f"Uncertainty is not yet implemented for {self.lottery_name}."
             )
         else:
             row_sums = self.reduced_claimant_matrix.sum(axis=1)
@@ -594,7 +594,7 @@ class TaurekLottery(GroupBasedLottery):
         """
         if self.has_uncertainty:
             raise NotImplementedError(
-                f"Uncertainty is not yet implemented for {self.__name__}."
+                f"Uncertainty is not yet implemented for {self.lottery_name}."
             )
         else:
             binary_claimant_matrix = np.where(self.reduced_claimant_matrix > 0, 1, 0)
@@ -627,7 +627,7 @@ class TILottery(Lottery):
             self.register_lottery_in_db()
         if self.has_uncertainty:
             raise NotImplementedError(
-                f"Uncertainty is not yet implemented for {self.__name__}."
+                f"Uncertainty is not yet implemented for {self.lottery_name}."
             )
 
     def remaining_claimants_and_groups_after_next_pick(self, picked_claimant):
@@ -683,40 +683,3 @@ class TILottery(Lottery):
                         * group_prob
                     )
         return probabilities
-
-
-def main():
-    # n_claimants = 6
-    # ones = [1 for _ in range(int(n_claimants / 2))]
-    # zeroes = [0 for _ in range(int(n_claimants / 2))]
-    # my_array = np.transpose(np.array([ones + zeroes, zeroes + ones]))
-    # for i in range(n_claimants):
-    #     for j in range(i + 1, n_claimants):
-    #         newcol = np.zeros(shape=(n_claimants, 1))
-    #         newcol[i] = 1
-    #         newcol[j] = 1
-    #         my_array = np.hstack([my_array, newcol])
-
-    my_array = np.array(
-        [
-            [1, 0, 0.5, 1],
-            [0, 1, 1, 0],
-            [1, 1, 0, 1],
-            [0, 0.4, 0, 1],
-            [1, 1, 1, 1],
-        ]
-    )
-    # for Lot in [EXCSLottery, EQCSLottery, TaurekLottery, TILottery]:
-    #     lottery = Lot(claimant_mat=my_array, remove_subgroups=False)
-    #     lottery.compute_on_orbits()
-    lottery = TILottery(
-        claimant_mat=my_array, remove_subgroups=False, use_db_access=True
-    )
-    # lottery.compute_on_orbits()
-    x = Matrix([1, 1, 1, 1, 1])
-    print(x.transpose() * lottery.symbolic_matrix)
-    # print(np.array_equal(lottery.unique_values, np.array([0,0.5,1])))
-
-
-if __name__ == "__main__":
-    main()
