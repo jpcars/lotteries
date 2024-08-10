@@ -90,6 +90,7 @@ in the command line.
 
 
 ## To do
+ - Write tests
  - Adjust probability reporting
  - Implement actual symbolic lottery
  - Implement entire-claim-of-claimant-to-largest-group-of-claimant lottery
