@@ -28,6 +28,9 @@ st.write(
     "The number in cell (i,j) indicates the probability that claimant i will be saved, "
     "given that outcome group j was selected."
 )
+st.write(
+    "Currently only lotteries without uncertainty are implemented, i.e. each entry has to be either 0 or 1."
+)
 df = pd.DataFrame(
     np.zeros((st.session_state["numClaimants"], st.session_state["numGroups"]))
 )
