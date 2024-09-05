@@ -7,6 +7,7 @@ from lotteries.symbolic_lotteries import (
     EQCSLottery,
     TILottery,
     TaurekLottery,
+    AllToLargestLottery,
 )
 
 st.set_page_config(page_title="Compute")
@@ -45,7 +46,13 @@ if st.button("Compute"):
     claimant_mat = edited_df.to_numpy()
     group_stats = [pd.Series(data=claimant_mat.sum(axis=0), name="size")]
     claimant_stats = []
-    for LotteryCLass in [EXCSLottery, EQCSLottery, TILottery, TaurekLottery]:
+    for LotteryCLass in [
+        EXCSLottery,
+        EQCSLottery,
+        TILottery,
+        TaurekLottery,
+        AllToLargestLottery,
+    ]:
         for remove_subgroups in [False, True]:
             name_suffix = "_pruned" if remove_subgroups else ""
             lottery = LotteryCLass(claimant_mat, remove_subgroups=remove_subgroups)
@@ -69,6 +76,8 @@ if st.button("Compute"):
     expected_number_lives_saved_EXCS = (group_df["size"] * group_df["EXCS"]).sum()
     expected_number_lives_saved_EQCS = (group_df["size"] * group_df["EQCS"]).sum()
     expected_number_lives_saved_TI = (group_df["size"] * group_df["TI"]).sum()
+    expected_number_lives_saved_TAUR = (group_df["size"] * group_df["TAUR"]).sum()
+    expected_number_lives_saved_LARG = (group_df["size"] * group_df["LARG"]).sum()
     claimant_df = pd.concat(claimant_stats, axis=1)
     st.subheader("Fairness metrics")
     st.write("Coming soon")
@@ -77,6 +86,8 @@ if st.button("Compute"):
     st.write(expected_number_lives_saved_EXCS)
     st.write(expected_number_lives_saved_EQCS)
     st.write(expected_number_lives_saved_TI)
+    st.write(expected_number_lives_saved_TAUR)
+    st.write(expected_number_lives_saved_LARG)
 
     st.subheader("Probability of benefiting a particular group")
     st.write(group_df)
