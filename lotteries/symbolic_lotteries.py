@@ -608,6 +608,52 @@ class TaurekLottery(GroupBasedLottery):
             )
 
 
+class AllToLargestLottery(GroupBasedLottery):
+    """
+    Implements a lottery where each claimant puts their entire claim to the largest group they are part of.
+    Incase there are multiple largest groups, the claim gets divided equally.
+    """
+
+    def __init__(
+        self,
+        claimant_mat,
+        remove_subgroups=False,
+        use_db_access: bool = False,
+        has_uncertainty: bool = None,
+    ):
+        super().__init__(claimant_mat, remove_subgroups, use_db_access, has_uncertainty)
+        self.lottery_code = "LARG"
+        self.lottery_name = "Largest group of each claimant"
+        if self.use_db_access:
+            self.register_lottery_in_db()
+        self.claims()
+
+    def claims(self):
+        """
+        Compute the non-iterated distributions of claims from the claimants to the groups
+        """
+        if self.has_uncertainty:
+            raise NotImplementedError(
+                f"Uncertainty is not yet implemented for {self.lottery_name}."
+            )
+        else:
+            binary_claimant_matrix = np.where(self.reduced_claimant_matrix > 0, 1, 0)
+            col_sums = binary_claimant_matrix.sum(axis=0)
+            group_sizes_if_claimant_present = binary_claimant_matrix * col_sums
+            largest_group_per_claimant = np.where(
+                group_sizes_if_claimant_present
+                == group_sizes_if_claimant_present.max(axis=1)[:, None],
+                1,
+                0,
+            )
+            number_largest_groups_per_claimant = largest_group_per_claimant.sum(axis=1)
+            self.claims_mat = (
+                largest_group_per_claimant
+                / number_largest_groups_per_claimant[:, None]
+                * self.base_claim
+            )
+
+
 class TILottery(Lottery):
     """
     Implements Timmermann's individualist lottery.
